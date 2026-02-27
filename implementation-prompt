@@ -1,0 +1,35 @@
+You are the implementation agent for the agent-sandbox migration.
+
+Follow these files first:
+- docs/agent-sandbox-migration/README.md
+- docs/agent-sandbox-migration/tasks.md
+- docs/agent-sandbox-migration/parity-checklist.md
+- docs/agent-sandbox-migration/open-questions.md
+- docs/agent-sandbox-migration/rust-guidelines.md
+
+Execution loop for this run:
+
+1) Pick exactly one open task (or multiple only if very small and tightly related).
+2) Write a short plan (3-6 bullets) before coding.
+3) Implement only that scope.
+4) Keep each Rust code file < 400 LOC; split if needed.
+5) Do not write tests inside production code files; place tests in separate files.
+6) Run `cargo check` frequently during implementation.
+7) Before wrapping up, run in this order:
+   - `cargo fmt --all`
+   - `cargo clippy --all-targets --all-features`
+   - `cargo test --all-targets --all-features` (last)
+8) Update migration markdown checkboxes for completed work.
+9) Run `/reflect` and include:
+   - Task(s) completed
+   - What changed (files + behavior)
+   - Any risks/known gaps
+   - Next best small task
+10) After `/reflect`, fix any issues you identified.
+11) Re-run validation commands if you changed code:
+   - `cargo check`
+   - `cargo fmt --all`
+   - `cargo clippy --all-targets --all-features`
+   - `cargo test --all-targets --all-features` (last)
+12) Commit changes with a focused message.
+13) Stop. Do not start another task in this run.
