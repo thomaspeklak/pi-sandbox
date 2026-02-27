@@ -340,10 +340,23 @@ if [[ "$BROWSER_MODE" == "1" ]]; then
   NETWORK_MODE="slirp4netns:allow_host_loopback=true"
 fi
 
-HOST_X11_SOCKET_DIR="/tmp/.X11-unix"
+CLIPBOARD_MODE_RAW="${PI_SBOX_ENABLE_CLIPBOARD:-1}"
+case "${CLIPBOARD_MODE_RAW,,}" in
+  1|true|yes|on)
+    CLIPBOARD_ENABLED=1
+    ;;
+  0|false|no|off)
+    CLIPBOARD_ENABLED=0
+    ;;
+  *)
+    echo "Invalid PI_SBOX_ENABLE_CLIPBOARD value: $CLIPBOARD_MODE_RAW (expected: 1/0/true/false)" >&2
+    exit 2
+    ;;
+esac
+
 WAYLAND_SOCKET_HOST=""
 WAYLAND_DISPLAY_NAME=""
-if [[ -n "${XDG_RUNTIME_DIR:-}" && -n "${WAYLAND_DISPLAY:-}" ]]; then
+if [[ "$CLIPBOARD_ENABLED" == "1" && -n "${XDG_RUNTIME_DIR:-}" && -n "${WAYLAND_DISPLAY:-}" ]]; then
   candidate_wayland_socket="${XDG_RUNTIME_DIR}/${WAYLAND_DISPLAY}"
   if [[ -S "$candidate_wayland_socket" ]]; then
     WAYLAND_SOCKET_HOST="$candidate_wayland_socket"
@@ -386,10 +399,6 @@ PODMAN_ARGS=(
   -v "$SCCACHE_DIR_HOST:$SCCACHE_DIR_CONTAINER:rw"
   -v "$CACHEPOT_DIR_HOST:$CACHEPOT_DIR_CONTAINER:rw"
 )
-
-if [[ -n "${DISPLAY:-}" && -d "$HOST_X11_SOCKET_DIR" ]]; then
-  PODMAN_ARGS+=( -e DISPLAY -v "$HOST_X11_SOCKET_DIR:$HOST_X11_SOCKET_DIR:ro" )
-fi
 
 if [[ -n "$WAYLAND_SOCKET_HOST" && -n "$WAYLAND_DISPLAY_NAME" ]]; then
   PODMAN_ARGS+=(

@@ -38,9 +38,6 @@ RUN dnf -y update && \
       wget \
       which \
       wl-clipboard \
-      xclip \
-      xorg-x11-xauth \
-      xsel \
       xz \
       zip && \
     dnf clean all
