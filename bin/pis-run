@@ -47,8 +47,12 @@ GITCFG_PATH="$(cfg '.sandbox.gitconfig_path')"
 AUTH_KEY="$(cfg '.sandbox.auth_key')"
 SIGN_KEY="$(cfg '.sandbox.sign_key')"
 SETTINGS_TEMPLATE="$ROOT_DIR/agent/settings.example.json"
-WORKDIR="${PI_SBOX_WORKDIR:-$PWD}"
-WORKDIR="$(realpath "$WORKDIR")"
+WORKDIR_SOURCE="${PI_SBOX_WORKDIR:-$PWD}"
+WORKDIR="$(realpath "$WORKDIR_SOURCE")"
+CONTAINER_WORKDIR="$WORKDIR_SOURCE"
+if [[ "$CONTAINER_WORKDIR" != /* ]]; then
+  CONTAINER_WORKDIR="$WORKDIR"
+fi
 
 mkdir -p "$CACHE_DIR" "$SANDBOX_PI_DIR/extensions"
 
@@ -332,14 +336,14 @@ PODMAN_ARGS=(
   -e EDITOR
   -e VISUAL
   --env-file "$ENV_FILE"
-  -v "$WORKDIR:/workspace:rw"
-  -w /workspace
+  -v "$WORKDIR:$CONTAINER_WORKDIR:rw"
+  -w "$CONTAINER_WORKDIR"
   -v "$SANDBOX_PI_DIR:/home/dev/.pi/agent:rw"
   -v "$GITCFG_PATH:/home/dev/.config/pi-sandbox/gitconfig:ro"
 )
 
-read_roots=("/workspace" "/tmp" "/home/dev/.pi/agent")
-write_roots=("/workspace" "/tmp" "/home/dev/.pi/agent")
+read_roots=("$CONTAINER_WORKDIR" "/tmp" "/home/dev/.pi/agent")
+write_roots=("$CONTAINER_WORKDIR" "/tmp" "/home/dev/.pi/agent")
 
 mapfile -t ACTIVE_MOUNTS < <(jq -c --arg browser "$BROWSER_MODE" '.mounts[]? | select(.when == "always" or ($browser == "1" and .when == "browser"))' <<<"$CONFIG_JSON")
 for mount_json in "${ACTIVE_MOUNTS[@]}"; do
