@@ -28,13 +28,12 @@ impl From<io::Error> for InstallError {
     }
 }
 
-/// Install ags: write embedded assets and clean up legacy symlinks.
+/// Install ags: write embedded assets and ensure config layout.
 pub fn run() -> Result<(), InstallError> {
     let home = dirs::home_dir().ok_or(InstallError::HomeDir)?;
-    let bin_dir = home.join(".local/bin");
     let config_dir = home.join(".config/ags");
-    let agent_dir = std::env::var("PI_SBOX_AGENT_DIR")
-        .map_or_else(|_| config_dir.join("pi"), PathBuf::from);
+    let agent_dir =
+        std::env::var("PI_SBOX_AGENT_DIR").map_or_else(|_| config_dir.join("pi"), PathBuf::from);
 
     fs::create_dir_all(&config_dir)?;
     fs::create_dir_all(agent_dir.join("extensions"))?;
@@ -46,7 +45,10 @@ pub fn run() -> Result<(), InstallError> {
 
     // Write guard extension
     assets::ensure_guard_extension(&agent_dir)?;
-    println!("Wrote guard extension: {}", agent_dir.join("extensions/guard.ts").display());
+    println!(
+        "Wrote guard extension: {}",
+        agent_dir.join("extensions/guard.ts").display()
+    );
 
     // Write settings template (only if missing)
     let settings = agent_dir.join("settings.json");
@@ -60,55 +62,17 @@ pub fn run() -> Result<(), InstallError> {
     // Remove legacy config-dir symlink if it points elsewhere
     remove_legacy_symlink(&config_dir);
 
-    // Remove legacy shell script symlinks
-    let legacy_commands = [
-        "pis",
-        "pisb",
-        "pis-setup",
-        "pis-doctor",
-        "pis-update",
-        "pis-run",
-        "pi-sbox",
-        "pi-sbox-browser",
-        "pi-sbox-setup",
-    ];
-    for cmd in &legacy_commands {
-        let path = bin_dir.join(cmd);
-        if path.symlink_metadata().is_ok() {
-            let _ = fs::remove_file(&path);
-            println!("Removed legacy symlink: {}", path.display());
-        }
-    }
+    // Legacy binary/alias cleanup intentionally omitted.
+    // Binary aliases are treated as userland responsibility.
 
     println!("\nInstall complete.");
     println!("Run: ags doctor");
     Ok(())
 }
 
-/// Remove symlinks that were installed by a previous version.
+/// Uninstall currently performs no binary alias cleanup.
 pub fn uninstall() -> Result<(), InstallError> {
-    let home = dirs::home_dir().ok_or(InstallError::HomeDir)?;
-    let bin_dir = home.join(".local/bin");
-
-    let commands = [
-        "pis",
-        "pisb",
-        "pis-setup",
-        "pis-doctor",
-        "pis-update",
-        "pis-run",
-        "pi-sbox",
-        "pi-sbox-browser",
-        "pi-sbox-setup",
-    ];
-    for cmd in &commands {
-        let path = bin_dir.join(cmd);
-        if path.symlink_metadata().is_ok() {
-            let _ = fs::remove_file(&path);
-            println!("Removed: {}", path.display());
-        }
-    }
-
+    let _ = dirs::home_dir().ok_or(InstallError::HomeDir)?;
     println!("Uninstall complete.");
     Ok(())
 }
