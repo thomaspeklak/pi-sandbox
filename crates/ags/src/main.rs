@@ -67,6 +67,13 @@ fn run_subcommand(sub: SubCommand) -> ExitCode {
                         return ExitCode::FAILURE;
                     }
                 }
+                SubCommand::UpdateAgents => {
+                    let opts = ags::cmd::update_agents::UpdateAgentsOptions::default();
+                    if let Err(e) = ags::cmd::update_agents::run(&config, &opts) {
+                        eprintln!("update-agents error: {e}");
+                        return ExitCode::FAILURE;
+                    }
+                }
                 SubCommand::Install | SubCommand::Uninstall => unreachable!(),
             }
         }
@@ -86,7 +93,7 @@ fn run_agent(opts: RunOptions) -> ExitCode {
     if let Err(e) = ags::assets::ensure_containerfile(&config.sandbox.containerfile) {
         eprintln!("warning: could not write Containerfile: {e}");
     }
-    if opts.agent == Agent::Pi {
+    if matches!(opts.agent, Agent::Pi | Agent::Shell) {
         let pi_sandbox = config.sandbox.sandbox_dir_for(Agent::Pi);
         if let Err(e) = ags::assets::ensure_guard_extension(&pi_sandbox) {
             eprintln!("warning: could not write guard extension: {e}");

@@ -16,8 +16,10 @@ const CONTAINER_GITCONFIG: &str = "/home/dev/.config/ags/gitconfig";
 const CONTAINER_SSH_SOCK: &str = "/ssh-agent";
 
 /// Cache volume mappings: (host_suffix under cache_dir, container_path, env_var).
+/// An empty env_var means no environment variable is emitted for that mount.
 const CACHE_MOUNTS: &[(&str, &str, &str)] = &[
-    ("pnpm-home", "/home/dev/.local/share/pnpm", "PNPM_HOME"),
+    ("pnpm-home", "/usr/local/pnpm", "PNPM_HOME"),
+    ("claude-install", "/opt/claude-home", ""),
     ("cargo-home", "/home/dev/.cargo", "CARGO_HOME"),
     ("go-path", "/home/dev/go", "GOPATH"),
     ("go-build", "/home/dev/.cache/go-build", "GOCACHE"),
@@ -369,7 +371,9 @@ fn build_env(
     }
 
     for (_, container_path, env_var) in CACHE_MOUNTS {
-        inline.push((env_var.to_string(), container_path.to_string()));
+        if !env_var.is_empty() {
+            inline.push((env_var.to_string(), container_path.to_string()));
+        }
     }
 
     if let Some(w) = wayland {

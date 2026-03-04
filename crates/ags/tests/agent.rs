@@ -118,14 +118,16 @@ fn claude_profile_command() {
 }
 
 #[test]
-fn claude_profile_has_config_env() {
+fn claude_profile_no_config_dir_env() {
     let config = minimal_config();
     let profile = profile_for(Agent::Claude, &config);
+    // CLAUDE_CONFIG_DIR should NOT be set — Claude uses $HOME/.claude by default,
+    // and setting it explicitly can interfere with credential discovery.
     assert!(
-        profile
+        !profile
             .extra_env
             .iter()
-            .any(|(k, v)| k == "CLAUDE_CONFIG_DIR" && v == "/home/dev/.claude")
+            .any(|(k, _)| k == "CLAUDE_CONFIG_DIR")
     );
 }
 
@@ -135,8 +137,8 @@ fn claude_profile_has_sandbox_mount() {
     let profile = profile_for(Agent::Claude, &config);
     assert_eq!(profile.extra_mounts.len(), 1);
     assert_eq!(profile.extra_mounts[0].container, "/home/dev/.claude");
-    // Should point to sandbox dir, not host_claude_dir
-    let expected = config.sandbox.sandbox_dir_for(Agent::Claude);
+    // Should point to host_claude_dir for auth access
+    let expected = config.sandbox.host_claude_dir.clone();
     assert_eq!(profile.extra_mounts[0].host, expected);
     assert_eq!(profile.extra_mounts[0].mode, ags::config::MountMode::Rw);
 }
@@ -150,10 +152,14 @@ fn claude_profile_has_optional_json_mount() {
         profile.optional_file_mounts[0].container,
         "/home/dev/.claude.json"
     );
-    assert_eq!(
-        profile.optional_file_mounts[0].host,
-        config.sandbox.agent_sandbox_base.join(".claude.json")
-    );
+    // Should be sibling of host_claude_dir (e.g. ~/.claude -> ~/.claude.json)
+    let expected = config
+        .sandbox
+        .host_claude_dir
+        .parent()
+        .unwrap()
+        .join(".claude.json");
+    assert_eq!(profile.optional_file_mounts[0].host, expected);
 }
 
 #[test]
@@ -209,7 +215,7 @@ fn opencode_profile_has_sandbox_mount() {
     assert_eq!(profile.extra_mounts[0].host, expected);
     assert_eq!(
         profile.extra_boot_dirs,
-        vec!["/home/dev/.local/share/opencode"]
+        vec!["/home/dev/.local/share/opencode", "/home/dev/.cache/opencode"]
     );
 }
 

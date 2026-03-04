@@ -8,6 +8,7 @@ pub enum Agent {
     Codex,
     Gemini,
     Opencode,
+    Shell,
 }
 
 impl Agent {
@@ -18,6 +19,7 @@ impl Agent {
             Self::Codex => "codex",
             Self::Gemini => "gemini",
             Self::Opencode => "opencode",
+            Self::Shell => "shell",
         }
     }
 
@@ -28,6 +30,7 @@ impl Agent {
             "codex" => Ok(Self::Codex),
             "gemini" => Ok(Self::Gemini),
             "opencode" => Ok(Self::Opencode),
+            "shell" => Ok(Self::Shell),
             _ => Err(CliError::InvalidAgent(value.to_owned())),
         }
     }
@@ -61,6 +64,7 @@ pub enum SubCommand {
     Setup,
     Doctor,
     Update,
+    UpdateAgents,
     Install,
     Uninstall,
 }
@@ -81,7 +85,7 @@ impl fmt::Display for CliError {
         match self {
             Self::HelpRequested => f.write_str("help requested"),
             Self::MissingAgent => {
-                f.write_str("missing required argument: --agent <pi|claude|codex|gemini|opencode>")
+                f.write_str("missing required argument: --agent <pi|claude|codex|gemini|opencode|shell>")
             }
             Self::MissingAgentValue => f.write_str("missing value for --agent"),
             Self::MissingConfigValue => f.write_str("missing value for --config"),
@@ -113,6 +117,7 @@ where
         "setup" => return Ok(Command::Sub(SubCommand::Setup)),
         "doctor" => return Ok(Command::Sub(SubCommand::Doctor)),
         "update" => return Ok(Command::Sub(SubCommand::Update)),
+        "update-agents" => return Ok(Command::Sub(SubCommand::UpdateAgents)),
         "install" => return Ok(Command::Sub(SubCommand::Install)),
         "uninstall" => return Ok(Command::Sub(SubCommand::Uninstall)),
         _ => {}
@@ -207,17 +212,18 @@ fn parse_run_arg<I: Iterator<Item = String>>(
 }
 
 pub fn help_text() -> &'static str {
-    "Usage: ags [command] --agent <pi|claude|codex|gemini|opencode> [flags] -- [args...]\n\
+    "Usage: ags [command] --agent <pi|claude|codex|gemini|opencode|shell> [flags] -- [args...]\n\
      \n\
      Commands:\n\
-     \x20 setup      Generate SSH keys and configure secrets\n\
-     \x20 doctor     Run health checks on sandbox configuration\n\
-     \x20 update     Rebuild the container image\n\
-     \x20 install    Install symlinks and bootstrap config\n\
-     \x20 uninstall  Remove installed symlinks\n\
+     \x20 setup          Generate SSH keys and configure secrets\n\
+     \x20 doctor         Run health checks on sandbox configuration\n\
+     \x20 update         Rebuild the container image (deps only)\n\
+     \x20 update-agents  Install/update agents in persistent volumes\n\
+     \x20 install        Install symlinks and bootstrap config\n\
+     \x20 uninstall      Remove installed symlinks\n\
      \n\
      Run flags:\n\
-     \x20 --agent <name>   Agent to run (required)\n\
+     \x20 --agent <name>   Agent to run (required), or 'shell' for interactive bash\n\
      \x20 --browser        Enable browser sidecar\n\
      \x20 --config <path>  Override config file path\n"
 }

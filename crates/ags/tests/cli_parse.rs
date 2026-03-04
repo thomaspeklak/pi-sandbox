@@ -52,6 +52,7 @@ fn parses_subcommands() {
         ("setup", SubCommand::Setup),
         ("doctor", SubCommand::Doctor),
         ("update", SubCommand::Update),
+        ("update-agents", SubCommand::UpdateAgents),
         ("install", SubCommand::Install),
         ("uninstall", SubCommand::Uninstall),
     ] {

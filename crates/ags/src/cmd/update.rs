@@ -1,23 +1,16 @@
 use std::fmt;
 use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::config::ValidatedConfig;
 
 /// Options for the update command.
 pub struct UpdateOptions {
-    pub pi_spec: Option<String>,
-    pub minimum_release_age: Option<u32>,
     pub pull: bool,
 }
 
 impl Default for UpdateOptions {
     fn default() -> Self {
-        Self {
-            pi_spec: None,
-            minimum_release_age: None,
-            pull: true,
-        }
+        Self { pull: true }
     }
 }
 
@@ -38,7 +31,7 @@ impl fmt::Display for UpdateError {
 
 impl std::error::Error for UpdateError {}
 
-/// Rebuild the sandbox container image.
+/// Rebuild the sandbox container image (deps only — agents live in volumes).
 pub fn run(config: &ValidatedConfig, opts: &UpdateOptions) -> Result<(), UpdateError> {
     let image = &config.sandbox.image;
     let containerfile = &config.sandbox.containerfile;
@@ -48,15 +41,6 @@ pub fn run(config: &ValidatedConfig, opts: &UpdateOptions) -> Result<(), UpdateE
             containerfile.display().to_string(),
         ));
     }
-
-    let pi_spec = opts.pi_spec.as_deref().unwrap_or(&config.update.pi_spec);
-    let release_age = opts
-        .minimum_release_age
-        .unwrap_or(config.update.minimum_release_age);
-    let refresh = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
 
     let context_dir = containerfile
         .parent()
@@ -68,9 +52,6 @@ pub fn run(config: &ValidatedConfig, opts: &UpdateOptions) -> Result<(), UpdateE
         image.clone(),
         "-f".into(),
         containerfile.display().to_string(),
-        format!("--build-arg=PI_CODING_AGENT_SPEC={pi_spec}"),
-        format!("--build-arg=PNPM_MINIMUM_RELEASE_AGE={release_age}"),
-        format!("--build-arg=PI_REFRESH={refresh}"),
     ];
 
     if opts.pull {
@@ -80,9 +61,6 @@ pub fn run(config: &ValidatedConfig, opts: &UpdateOptions) -> Result<(), UpdateE
     args.push(context_dir.display().to_string());
 
     println!("Rebuilding {image}");
-    println!("  PI spec: {pi_spec}");
-    println!("  pnpm minimum-release-age: {release_age}");
-    println!("  refresh marker: {refresh}");
 
     let status = Command::new("podman")
         .args(&args)
@@ -93,6 +71,7 @@ pub fn run(config: &ValidatedConfig, opts: &UpdateOptions) -> Result<(), UpdateE
         return Err(UpdateError::BuildFailed(format!("exited with {status}")));
     }
 
-    println!("\nDone. Verify with: ags --agent pi -- --version");
+    println!("\nDone. Image rebuilt (deps only).");
+    println!("Run 'ags update-agents' to install/update agents in volumes.");
     Ok(())
 }

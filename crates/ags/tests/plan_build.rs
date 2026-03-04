@@ -91,7 +91,8 @@ fn cache_mounts_created() {
     let plan = build_plan_from(&toml, workdir.path());
 
     let cache_containers: Vec<&str> = vec![
-        "/home/dev/.local/share/pnpm",
+        "/usr/local/pnpm",
+        "/opt/claude-home",
         "/home/dev/.cargo",
         "/home/dev/go",
         "/home/dev/.cache/go-build",
@@ -126,6 +127,20 @@ fn env_has_required_inline_vars() {
     assert_eq!(find_env("SSH_AUTH_SOCK"), Some("/ssh-agent".to_owned()));
     assert!(find_env("PNPM_HOME").is_some());
     assert!(find_env("CARGO_HOME").is_some());
+}
+
+#[test]
+fn empty_env_var_not_emitted() {
+    let toml = minimal_config_toml();
+    let workdir = tempfile::tempdir().unwrap();
+    let plan = build_plan_from(&toml, workdir.path());
+
+    let has_empty_key = plan
+        .env
+        .inline
+        .iter()
+        .any(|(k, _)| k.is_empty());
+    assert!(!has_empty_key, "empty env var key should not be emitted");
 }
 
 #[test]
@@ -463,9 +478,9 @@ fn claude_agent_has_config_env() {
             .map(|(_, v)| v.clone())
     };
 
-    assert_eq!(
-        find_env("CLAUDE_CONFIG_DIR"),
-        Some("/home/dev/.claude".to_owned())
+    assert!(
+        find_env("CLAUDE_CONFIG_DIR").is_none(),
+        "claude should not set CLAUDE_CONFIG_DIR (uses $HOME/.claude by default)"
     );
     assert!(
         find_env("PI_CODING_AGENT_DIR").is_none(),

@@ -54,7 +54,7 @@ pub fn build_run_args(plan: &LaunchPlan, env_file: &Path) -> Vec<String> {
     let mut first = true;
     for m in &plan.mounts {
         args.push("-v".into());
-        args.push(format!("{}:{}:{}", m.host.display(), m.container, m.mode));
+        args.push(format!("{}:{}:{},z", m.host.display(), m.container, m.mode));
         if first {
             args.push("-w".into());
             args.push(plan.workdir.container.clone());
