@@ -1,4 +1,4 @@
-FROM registry.fedoraproject.org/fedora:41
+FROM registry.fedoraproject.org/fedora:43
 
 RUN dnf -y update && \
     dnf -y install \
@@ -6,6 +6,7 @@ RUN dnf -y update && \
       ca-certificates \
       coreutils \
       curl \
+      dbus-devel \
       diffutils \
       fd-find \
       file \
@@ -25,6 +26,7 @@ RUN dnf -y update && \
       pnpm \
       openssh-clients \
       patch \
+      pkgconf-pkg-config \
       procps-ng \
       python3 \
       python3-pip \
@@ -45,18 +47,8 @@ RUN dnf -y update && \
     dnf clean all
 
 RUN useradd -m -u 1000 -s /bin/bash dev && \
-    mkdir -p /workspace /home/dev/.local/bin && \
-    chown -R dev:dev /workspace /home/dev
-
-ARG PNPM_MINIMUM_RELEASE_AGE=1440
-ARG PI_CODING_AGENT_SPEC=@mariozechner/pi-coding-agent
-ARG PI_REFRESH=0
-RUN mkdir -p /root/.config/pnpm /usr/local/pnpm && \
-    printf 'minimum-release-age=%s\n' "$PNPM_MINIMUM_RELEASE_AGE" > /root/.config/pnpm/rc && \
-    PNPM_HOME=/usr/local/pnpm PATH=/usr/local/pnpm:$PATH pnpm add -g "$PI_CODING_AGENT_SPEC" && \
-    ln -sf /usr/local/pnpm/pi /usr/local/bin/pi && \
-    mkdir -p /usr/local/share && \
-    printf '%s\n' "$PI_REFRESH" > /usr/local/share/pi-refresh-marker
+    mkdir -p /workspace /home/dev/.local/bin /home/dev/.cache /usr/local/pnpm /opt/claude-home && \
+    chown -R dev:dev /workspace /home/dev /usr/local/pnpm /opt/claude-home
 
 ARG RUST_TOOLCHAIN=stable
 RUN mkdir -p /usr/local/rustup /usr/local/cargo && \

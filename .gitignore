@@ -3,5 +3,26 @@ config/config.toml
 *.bak.*
 __pycache__/
 *.pyc
-scripts/__pycache__/
 agent/settings.json
+/target/
+
+# Dotfiles (host/container mounts, not part of repo)
+.bash_profile
+.bashrc
+.gitconfig
+.gitmodules
+.mcp.json
+.profile
+.ripgreprc
+.zprofile
+.zshrc
+.claude/
+.idea
+.vscode
+
+# Bare git objects (container mount artifacts)
+HEAD
+hooks
+objects
+refs
+
