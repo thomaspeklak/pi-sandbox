@@ -117,6 +117,26 @@ pub fn discover_external_git_mounts(workdir: &Path) -> ExternalGitMounts {
     }
 }
 
+/// If `workdir` is a linked git worktree, return the parent repository root.
+///
+/// For linked worktrees, `git rev-parse --git-common-dir` points to
+/// `<main-repo>/.git`. This function returns `<main-repo>`.
+///
+/// Returns `None` for non-git paths, normal repos, or if resolution fails.
+pub fn worktree_parent_repo_dir(workdir: &Path) -> Option<PathBuf> {
+    if !is_inside_work_tree(workdir) {
+        return None;
+    }
+
+    let git_dir = resolve_absolute_git_dir(workdir)?;
+    if !has_git_worktrees_segment(&git_dir) {
+        return None;
+    }
+
+    let common_dir = resolve_common_dir(workdir)?;
+    common_dir.parent().map(Path::to_path_buf)
+}
+
 /// Parse a `.git` file (as used by worktrees) to extract the gitdir path.
 ///
 /// A `.git` file contains a single line: `gitdir: /path/to/git/dir`
@@ -227,6 +247,23 @@ fn parse_trimmed_path(bytes: &[u8]) -> Option<PathBuf> {
     } else {
         Some(PathBuf::from(s))
     }
+}
+
+fn has_git_worktrees_segment(path: &Path) -> bool {
+    let mut prev_dot_git = false;
+    for component in path.components() {
+        let std::path::Component::Normal(name) = component else {
+            prev_dot_git = false;
+            continue;
+        };
+
+        if prev_dot_git && name == "worktrees" {
+            return true;
+        }
+
+        prev_dot_git = name == ".git";
+    }
+    false
 }
 
 /// Add a candidate path to the mount set if it's a real directory outside workdir.

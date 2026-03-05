@@ -53,6 +53,20 @@ fn minimal_plan_has_correct_image() {
 }
 
 #[test]
+fn container_name_has_expected_format() {
+    let toml = minimal_config_toml();
+    let workdir = tempfile::tempdir().unwrap();
+    let plan = build_plan_from(&toml, workdir.path());
+
+    assert!(plan.container_name.starts_with("ags-"));
+    let parts: Vec<&str> = plan.container_name.split('-').collect();
+    assert!(parts.len() >= 3, "name should have prefix, path, and id");
+    let id = parts.last().unwrap();
+    assert_eq!(id.len(), 4);
+    assert!(id.chars().all(|c| c.is_ascii_hexdigit()));
+}
+
+#[test]
 fn workdir_is_first_mount() {
     let toml = minimal_config_toml();
     let workdir = tempfile::tempdir().unwrap();
@@ -135,11 +149,7 @@ fn empty_env_var_not_emitted() {
     let workdir = tempfile::tempdir().unwrap();
     let plan = build_plan_from(&toml, workdir.path());
 
-    let has_empty_key = plan
-        .env
-        .inline
-        .iter()
-        .any(|(k, _)| k.is_empty());
+    let has_empty_key = plan.env.inline.iter().any(|(k, _)| k.is_empty());
     assert!(!has_empty_key, "empty env var key should not be emitted");
 }
 
@@ -436,6 +446,16 @@ fn claude_agent_entrypoint() {
     assert!(
         plan.entrypoint.contains("exec claude"),
         "claude entrypoint should exec claude: {}",
+        plan.entrypoint
+    );
+    assert!(
+        plan.entrypoint.contains("--dangerously-skip-permissions"),
+        "claude should disable internal sandbox/prompts in ags: {}",
+        plan.entrypoint
+    );
+    assert!(
+        plan.entrypoint.contains("--settings") && plan.entrypoint.contains("\"enabled\":false"),
+        "claude should disable builtin bash sandbox in ags: {}",
         plan.entrypoint
     );
     assert!(

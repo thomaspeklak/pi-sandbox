@@ -114,7 +114,14 @@ fn claude_profile_command() {
     let config = minimal_config();
     let profile = profile_for(Agent::Claude, &config);
     assert_eq!(profile.command, "claude");
-    assert!(profile.command_args.is_empty());
+    assert_eq!(
+        profile.command_args,
+        vec![
+            "--dangerously-skip-permissions",
+            "--settings",
+            "{\"sandbox\":{\"enabled\":false}}"
+        ]
+    );
 }
 
 #[test]
@@ -215,7 +222,10 @@ fn opencode_profile_has_sandbox_mount() {
     assert_eq!(profile.extra_mounts[0].host, expected);
     assert_eq!(
         profile.extra_boot_dirs,
-        vec!["/home/dev/.local/share/opencode", "/home/dev/.cache/opencode"]
+        vec![
+            "/home/dev/.local/share/opencode",
+            "/home/dev/.cache/opencode"
+        ]
     );
 }
 

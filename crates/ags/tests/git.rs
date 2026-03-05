@@ -200,6 +200,87 @@ fn discover_external_mounts_worktree() {
     }
 }
 
+#[test]
+fn worktree_parent_repo_dir_none_for_normal_repo() {
+    let dir = tempdir();
+
+    let status = std::process::Command::new("git")
+        .args(["init", &dir.to_string_lossy()])
+        .output();
+
+    if status.is_err() {
+        eprintln!("git not available, skipping test");
+        return;
+    }
+
+    let parent = git::worktree_parent_repo_dir(&dir);
+    assert!(parent.is_none());
+}
+
+#[test]
+fn worktree_parent_repo_dir_for_linked_worktree() {
+    let base = tempdir();
+    let main_repo = base.join("main");
+    let worktree = base.join("worktree");
+
+    let git = |args: &[&str]| {
+        std::process::Command::new("git")
+            .args(args)
+            .output()
+            .ok()
+            .filter(|o| o.status.success())
+    };
+
+    if git(&["init", &main_repo.to_string_lossy()]).is_none() {
+        eprintln!("git not available, skipping");
+        return;
+    }
+
+    git(&[
+        "-C",
+        &main_repo.to_string_lossy(),
+        "config",
+        "user.email",
+        "test@test.com",
+    ]);
+    git(&[
+        "-C",
+        &main_repo.to_string_lossy(),
+        "config",
+        "user.name",
+        "Test",
+    ]);
+    git(&[
+        "-C",
+        &main_repo.to_string_lossy(),
+        "commit",
+        "--allow-empty",
+        "-m",
+        "init",
+    ]);
+
+    let wt_result = git(&[
+        "-C",
+        &main_repo.to_string_lossy(),
+        "worktree",
+        "add",
+        &worktree.to_string_lossy(),
+        "-b",
+        "test-branch",
+    ]);
+
+    if wt_result.is_none() {
+        eprintln!("git worktree not available, skipping");
+        return;
+    }
+
+    let parent = git::worktree_parent_repo_dir(&worktree).expect("expected parent repo dir");
+    assert_eq!(
+        parent.canonicalize().unwrap(),
+        main_repo.canonicalize().unwrap()
+    );
+}
+
 fn tempdir() -> PathBuf {
     let dir = std::env::temp_dir().join(format!("ags-git-test-{}", std::process::id()));
     let unique = dir.join(format!("{}", rand_u32()));

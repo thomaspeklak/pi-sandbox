@@ -73,7 +73,11 @@ fn claude_profile(config: &ValidatedConfig) -> AgentProfile {
     let host_json = host_claude_json(host_dir);
     AgentProfile {
         command: "claude".to_owned(),
-        command_args: vec![],
+        command_args: vec![
+            "--dangerously-skip-permissions".to_owned(),
+            "--settings".to_owned(),
+            "{\"sandbox\":{\"enabled\":false}}".to_owned(),
+        ],
         extra_env: vec![],
         extra_mounts: vec![PlanMount {
             host: host_dir.clone(),
@@ -143,9 +147,7 @@ fn shell_profile(config: &ValidatedConfig) -> AgentProfile {
     AgentProfile {
         command: "bash".to_owned(),
         command_args: vec![],
-        extra_env: vec![
-            ("PI_CODING_AGENT_DIR".to_owned(), "/home/dev/.pi".to_owned()),
-        ],
+        extra_env: vec![("PI_CODING_AGENT_DIR".to_owned(), "/home/dev/.pi".to_owned())],
         extra_mounts: vec![
             PlanMount {
                 host: pi_sandbox.clone(),

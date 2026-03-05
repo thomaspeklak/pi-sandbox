@@ -47,6 +47,7 @@ impl std::error::Error for PlanError {}
 pub struct LaunchPlan {
     pub image: String,
     pub containerfile: PathBuf,
+    pub container_name: String,
     pub workdir: WorkdirMapping,
     pub mounts: Vec<PlanMount>,
     pub env: PlanEnv,

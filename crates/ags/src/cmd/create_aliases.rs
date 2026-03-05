@@ -40,15 +40,15 @@ const ALIASES: &[AliasSpec] = &[
     // Short names
     AliasSpec {
         name: "asco",
-        command: "claude --model opus --strict-mcp-config --dangerously-skip-permissions",
+        command: "ags --agent claude -- --model opus --strict-mcp-config --dangerously-skip-permissions",
     },
     AliasSpec {
         name: "ascs",
-        command: "claude --model sonnet --strict-mcp-config --dangerously-skip-permissions",
+        command: "ags --agent claude -- --model sonnet --strict-mcp-config --dangerously-skip-permissions",
     },
     AliasSpec {
         name: "asch",
-        command: "claude --model haiku --strict-mcp-config --dangerously-skip-permissions",
+        command: "ags --agent claude -- --model haiku --strict-mcp-config --dangerously-skip-permissions",
     },
     AliasSpec {
         name: "aspi",
@@ -69,15 +69,15 @@ const ALIASES: &[AliasSpec] = &[
     // Long names
     AliasSpec {
         name: "ags-cc-opus",
-        command: "claude --model opus --strict-mcp-config --dangerously-skip-permissions",
+        command: "ags --agent claude -- --model opus --strict-mcp-config --dangerously-skip-permissions",
     },
     AliasSpec {
         name: "ags-cc-sonnet",
-        command: "claude --model sonnet --strict-mcp-config --dangerously-skip-permissions",
+        command: "ags --agent claude -- --model sonnet --strict-mcp-config --dangerously-skip-permissions",
     },
     AliasSpec {
         name: "ags-cc-haiku",
-        command: "claude --model haiku --strict-mcp-config --dangerously-skip-permissions",
+        command: "ags --agent claude -- --model haiku --strict-mcp-config --dangerously-skip-permissions",
     },
     AliasSpec {
         name: "ags-pi",
@@ -346,4 +346,32 @@ fn set_executable(path: &Path) -> Result<(), CreateAliasesError> {
         })?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn claude_aliases_use_ags_wrapper() {
+        let block = render_alias_block(Shell::Bash);
+        assert!(block.contains("alias ags-cc-opus='ags --agent claude -- --model opus"));
+        assert!(block.contains("alias asco='ags --agent claude -- --model opus"));
+        assert!(!block.contains("alias ags-cc-opus='claude --model opus"));
+    }
+
+    #[test]
+    fn wrapper_exec_uses_ags_for_claude_alias() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("ags-cc-opus");
+
+        write_wrapper(
+            &path,
+            "ags --agent claude -- --model opus --strict-mcp-config --dangerously-skip-permissions",
+        )
+        .unwrap();
+
+        let content = fs::read_to_string(&path).unwrap();
+        assert!(content.contains("exec ags --agent claude -- --model opus"));
+    }
 }

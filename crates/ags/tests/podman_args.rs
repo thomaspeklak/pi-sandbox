@@ -8,6 +8,7 @@ fn minimal_plan() -> LaunchPlan {
     LaunchPlan {
         image: "localhost/pi-sandbox:latest".to_owned(),
         containerfile: PathBuf::from("/tmp/Containerfile"),
+        container_name: "ags-project-abcd".to_owned(),
         workdir: WorkdirMapping {
             host: PathBuf::from("/home/user/project"),
             container: "/home/user/project".to_owned(),
@@ -66,6 +67,15 @@ fn args_include_network_mode() {
     let args = build_run_args(&plan, Path::new("/tmp/env"));
     let net_idx = args.iter().position(|a| a == "--network").unwrap();
     assert_eq!(args[net_idx + 1], "slirp4netns:allow_host_loopback=false");
+}
+
+#[test]
+fn args_include_container_name() {
+    let plan = minimal_plan();
+    let args = build_run_args(&plan, Path::new("/tmp/env"));
+
+    let idx = args.iter().position(|a| a == "--name").unwrap();
+    assert_eq!(args[idx + 1], "ags-project-abcd");
 }
 
 #[test]

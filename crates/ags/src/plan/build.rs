@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::fs;
+use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::agent::{self, AgentProfile};
 use crate::cli::Agent;
@@ -38,6 +40,7 @@ pub fn build_launch_plan(
 ) -> Result<LaunchPlan, PlanError> {
     let profile = agent::profile_for(agent, config);
     let workdir_mapping = resolve_workdir(workdir)?;
+    let container_name = build_container_name(&workdir_mapping.host);
     let cache_dir = &config.sandbox.cache_dir;
 
     // Ensure host directories exist
@@ -153,6 +156,7 @@ pub fn build_launch_plan(
     Ok(LaunchPlan {
         image: config.sandbox.image.clone(),
         containerfile: config.sandbox.containerfile.clone(),
+        container_name,
         workdir: workdir_mapping,
         mounts,
         env,
@@ -176,6 +180,81 @@ fn resolve_workdir(workdir: &Path) -> Result<WorkdirMapping, PlanError> {
         host.to_string_lossy().to_string()
     };
     Ok(WorkdirMapping { host, container })
+}
+
+fn build_container_name(workdir: &Path) -> String {
+    let name_base =
+        crate::git::worktree_parent_repo_dir(workdir).unwrap_or_else(|| workdir.to_path_buf());
+    let short_path = short_path_slug(&name_base);
+    let id = short_id4();
+    format!("ags-{short_path}-{id}")
+}
+
+fn short_path_slug(path: &Path) -> String {
+    let mut parts: Vec<String> = path
+        .components()
+        .filter_map(|c| match c {
+            std::path::Component::Normal(os) => Some(os.to_string_lossy().to_string()),
+            _ => None,
+        })
+        .collect();
+
+    if parts.is_empty() {
+        return "work".to_owned();
+    }
+
+    // Keep only the tail to avoid very long names.
+    if parts.len() > 3 {
+        parts = parts.split_off(parts.len() - 3);
+    }
+
+    let raw = parts.join("-");
+    let mut slug = String::with_capacity(raw.len());
+    let mut prev_dash = false;
+    for ch in raw.chars() {
+        let out = if ch.is_ascii_alphanumeric() {
+            ch.to_ascii_lowercase()
+        } else {
+            '-'
+        };
+
+        if out == '-' {
+            if prev_dash {
+                continue;
+            }
+            prev_dash = true;
+            slug.push('-');
+        } else {
+            prev_dash = false;
+            slug.push(out);
+        }
+    }
+
+    let slug = slug.trim_matches('-');
+    if slug.is_empty() {
+        return "work".to_owned();
+    }
+
+    const MAX_SLUG_LEN: usize = 40;
+    if slug.len() <= MAX_SLUG_LEN {
+        slug.to_owned()
+    } else {
+        slug[..MAX_SLUG_LEN].trim_matches('-').to_owned()
+    }
+}
+
+fn short_id4() -> String {
+    let now_nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    now_nanos.hash(&mut hasher);
+    std::process::id().hash(&mut hasher);
+    let digest = hasher.finish();
+
+    format!("{:04x}", digest & 0xffff)
 }
 
 // --- directory helpers ---

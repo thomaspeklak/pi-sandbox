@@ -22,6 +22,10 @@ pub fn build_run_args(plan: &LaunchPlan, env_file: &Path) -> Vec<String> {
     args.push("--network".into());
     args.push(plan.network_mode.clone());
 
+    // Container name
+    args.push("--name".into());
+    args.push(plan.container_name.clone());
+
     // Inline environment variables
     for (key, value) in &plan.env.inline {
         args.push("-e".into());
