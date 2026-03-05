@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.1.2] — 2026-03-05
+
+### Bug Fixes
+
+- Fixed a Claude regression where the generated `/usr/local/pnpm/claude` wrapper forced `HOME=/opt/claude-home`, causing Claude to ignore mounted `/home/dev/.claude` state and show first-run onboarding.
+- Updated the generated Claude wrapper to preserve runtime `HOME` and only prepend `/opt/claude-home/.local/bin` to `PATH`.
+- Added regression tests for `ags update-agents` script generation to ensure update/install still use persistent Claude install paths while runtime `HOME` remains untouched.
+
 ## [v0.1.1] — 2026-03-05
 
 ### Bug Fixes

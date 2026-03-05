@@ -104,9 +104,44 @@ else \
 fi && \
 [ -x "$CLAUDE_BIN" ] && \
 rm -f /usr/local/pnpm/claude && \
-printf '%s\n' '#!/usr/bin/env bash' 'export HOME=/opt/claude-home' 'export PATH=/opt/claude-home/.local/bin:$PATH' 'exec /opt/claude-home/.local/bin/claude "$@"' > /usr/local/pnpm/claude && \
+printf '%s\n' '#!/usr/bin/env bash' 'export PATH=/opt/claude-home/.local/bin:$PATH' 'exec /opt/claude-home/.local/bin/claude "$@"' > /usr/local/pnpm/claude && \
 chmod +x /usr/local/pnpm/claude"#,
         release_age = release_age,
         pi_spec = pi_spec,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_install_script;
+
+    #[test]
+    fn claude_update_still_uses_persistent_install_home() {
+        let script = build_install_script("@mariozechner/pi-coding-agent", 1440);
+
+        assert!(
+            script.contains(
+                "HOME=\"$CLAUDE_HOME\" PATH=\"$CLAUDE_HOME/.local/bin:$PATH\" \"$CLAUDE_BIN\" update"
+            ),
+            "claude update should run with persistent CLAUDE_HOME"
+        );
+    }
+
+    #[test]
+    fn claude_wrapper_does_not_override_runtime_home() {
+        let script = build_install_script("@mariozechner/pi-coding-agent", 1440);
+
+        assert!(
+            script.contains("exec /opt/claude-home/.local/bin/claude \"$@\""),
+            "wrapper should execute claude from persistent install path"
+        );
+        assert!(
+            script.contains("export PATH=/opt/claude-home/.local/bin:$PATH"),
+            "wrapper should keep claude bin on PATH"
+        );
+        assert!(
+            !script.contains("export HOME=/opt/claude-home"),
+            "wrapper must not override HOME at runtime"
+        );
+    }
 }
