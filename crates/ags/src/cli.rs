@@ -280,14 +280,14 @@ fn parse_run_arg<I: Iterator<Item = String>>(
     Err(CliError::UnexpectedPositional(arg.to_owned()))
 }
 
-fn parse_install_args<I>(mut iter: I) -> Result<InstallOptions, CliError>
+fn parse_install_args<I>(iter: I) -> Result<InstallOptions, CliError>
 where
     I: Iterator<Item = String>,
 {
     let mut link_self = false;
     let mut force = false;
 
-    while let Some(arg) = iter.next() {
+    for arg in iter {
         if arg == "-h" || arg == "--help" {
             return Err(CliError::HelpRequested);
         }

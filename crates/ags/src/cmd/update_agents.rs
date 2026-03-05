@@ -5,18 +5,10 @@ use std::process::Command;
 use crate::config::ValidatedConfig;
 
 /// Options for the update-agents command.
+#[derive(Default)]
 pub struct UpdateAgentsOptions {
     pub pi_spec: Option<String>,
     pub minimum_release_age: Option<u32>,
-}
-
-impl Default for UpdateAgentsOptions {
-    fn default() -> Self {
-        Self {
-            pi_spec: None,
-            minimum_release_age: None,
-        }
-    }
 }
 
 #[derive(Debug)]
