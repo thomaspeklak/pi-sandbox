@@ -4,10 +4,6 @@
 [sandbox]
 image = "example/agent-sandbox:latest"
 containerfile = "~/.config/ags/Containerfile"
-sandbox_pi_dir = "~/.config/ags/pi"
-host_pi_dir = "~/.pi/agent"
-host_claude_dir = "~/.claude"
-agent_sandbox_base = "~/.config/ags"
 cache_dir = "~/.cache/ags"
 gitconfig_path = "~/.config/ags/gitconfig-agent"
 auth_key = "~/.ssh/ags-agent-auth"
@@ -15,6 +11,32 @@ sign_key = "~/.ssh/ags-agent-signing"
 bootstrap_files = ["auth.json", "models.json"]
 container_boot_dirs = ["/home/dev/.ssh", "/home/dev/.config/example-tool"]
 passthrough_env = ["EXAMPLE_API_KEY"]
+
+# Required agent config mounts (explicit and inspectable)
+[[agent_mount]]
+host = "~/.claude.json"
+container = "/home/dev/.claude.json"
+kind = "file"
+
+[[agent_mount]]
+host = "~/.claude"
+container = "/home/dev/.claude"
+
+[[agent_mount]]
+host = "~/.codex"
+container = "/home/dev/.codex"
+
+[[agent_mount]]
+host = "~/.pi"
+container = "/home/dev/.pi"
+
+[[agent_mount]]
+host = "~/.config/opencode"
+container = "/home/dev/.config/opencode"
+
+[[agent_mount]]
+host = "~/.gemini"
+container = "/home/dev/.gemini"
 
 # Base mounts (replace with paths you actually need)
 [[mount]]

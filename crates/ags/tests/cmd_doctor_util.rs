@@ -1,17 +1,18 @@
 use std::fs;
 use std::path::Path;
 
-use ags::cli::Agent;
 use ags::cmd::doctor;
-use ags::config::{BrowserConfig, UpdateConfig, ValidatedConfig, ValidatedSandbox};
+use ags::config::{
+    BrowserConfig, MountKind, MountMode, MountWhen, UpdateConfig, ValidatedConfig, ValidatedMount,
+    ValidatedSandbox,
+};
 
 fn minimal_config(tmp: &Path) -> ValidatedConfig {
-    let agent_sandbox_base = tmp.join("agent-sandboxes");
-    // Pi sandbox lives at agent_sandbox_base/pi
-    let pi_sandbox = agent_sandbox_base.join("pi");
-    fs::create_dir_all(pi_sandbox.join("extensions")).unwrap();
-    fs::write(pi_sandbox.join("settings.json"), "{}").unwrap();
-    fs::write(pi_sandbox.join("extensions/guard.ts"), "// guard").unwrap();
+    let pi_root = tmp.join("pi");
+    let pi_agent = pi_root.join("agent");
+    fs::create_dir_all(pi_agent.join("extensions")).unwrap();
+    fs::write(pi_agent.join("settings.json"), "{}").unwrap();
+    fs::write(pi_agent.join("extensions/guard.ts"), "// guard").unwrap();
 
     let containerfile = tmp.join("Containerfile");
     fs::write(&containerfile, "FROM scratch").unwrap();
@@ -27,10 +28,6 @@ fn minimal_config(tmp: &Path) -> ValidatedConfig {
         sandbox: ValidatedSandbox {
             image: "test-image:latest".into(),
             containerfile,
-            sandbox_pi_dir: pi_sandbox,
-            host_pi_dir: tmp.join("host-pi"),
-            host_claude_dir: tmp.join("host-claude"),
-            agent_sandbox_base,
             cache_dir,
             gitconfig_path: gitconfig,
             auth_key,
@@ -39,7 +36,16 @@ fn minimal_config(tmp: &Path) -> ValidatedConfig {
             container_boot_dirs: vec![],
             passthrough_env: vec![],
         },
-        mounts: vec![],
+        mounts: vec![ValidatedMount {
+            host: pi_root,
+            container: "/home/dev/.pi".into(),
+            mode: MountMode::Rw,
+            kind: MountKind::Dir,
+            when: MountWhen::Always,
+            create: false,
+            optional: false,
+            source: "agent_mount".into(),
+        }],
         tools: vec![],
         secrets: vec![],
         browser: BrowserConfig::default(),
@@ -70,8 +76,11 @@ fn doctor_self_heals_missing_containerfile() {
 fn doctor_detects_missing_settings() {
     let tmp = tempfile::tempdir().unwrap();
     let config = minimal_config(tmp.path());
-    let pi_sandbox = config.sandbox.sandbox_dir_for(Agent::Pi);
-    fs::remove_file(pi_sandbox.join("settings.json")).unwrap();
+    let pi_agent = config
+        .mount_host_for_container("/home/dev/.pi")
+        .unwrap()
+        .join("agent");
+    fs::remove_file(pi_agent.join("settings.json")).unwrap();
     let result = doctor::run(&config);
     assert!(!result);
 }
@@ -80,10 +89,13 @@ fn doctor_detects_missing_settings() {
 fn doctor_self_heals_missing_guard_extension() {
     let tmp = tempfile::tempdir().unwrap();
     let config = minimal_config(tmp.path());
-    let pi_sandbox = config.sandbox.sandbox_dir_for(Agent::Pi);
+    let pi_agent = config
+        .mount_host_for_container("/home/dev/.pi")
+        .unwrap()
+        .join("agent");
     // Remove guard extension — doctor should recreate it from embedded asset
-    fs::remove_file(pi_sandbox.join("extensions/guard.ts")).unwrap();
+    fs::remove_file(pi_agent.join("extensions/guard.ts")).unwrap();
     let result = doctor::run(&config);
     assert!(result);
-    assert!(pi_sandbox.join("extensions/guard.ts").exists());
+    assert!(pi_agent.join("extensions/guard.ts").exists());
 }

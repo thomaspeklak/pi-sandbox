@@ -8,9 +8,6 @@ fn raw_config_deserializes_minimal_toml() {
 [sandbox]
 image = "localhost/agent-sandbox:latest"
 containerfile = "/tmp/Containerfile"
-sandbox_pi_dir = "/tmp/sandbox"
-host_pi_dir = "/tmp/host"
-host_claude_dir = "/tmp/claude"
 cache_dir = "/tmp/cache"
 gitconfig_path = "/tmp/gitconfig"
 auth_key = "/tmp/auth"
@@ -31,9 +28,6 @@ fn raw_config_deserializes_mounts_and_tools() {
 [sandbox]
 image = "test:latest"
 containerfile = "/tmp/Containerfile"
-sandbox_pi_dir = "/tmp/s"
-host_pi_dir = "/tmp/h"
-host_claude_dir = "/tmp/c"
 cache_dir = "/tmp/cache"
 gitconfig_path = "/tmp/gc"
 auth_key = "/tmp/a"
@@ -94,9 +88,6 @@ fn raw_config_deserializes_browser_section() {
 [sandbox]
 image = "test:latest"
 containerfile = "/tmp/cf"
-sandbox_pi_dir = "/tmp/s"
-host_pi_dir = "/tmp/h"
-host_claude_dir = "/tmp/c"
 cache_dir = "/tmp/cache"
 gitconfig_path = "/tmp/gc"
 auth_key = "/tmp/a"

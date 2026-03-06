@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::config::error::ConfigError;
-use crate::config::raw::{RawBrowser, RawConfig, RawMount, RawSecret, RawTool};
+use crate::config::raw::{RawAgentMount, RawBrowser, RawConfig, RawMount, RawSecret, RawTool};
 use crate::config::types::{
     BrowserConfig, MountKind, MountMode, MountWhen, SecretSource, UpdateConfig, ValidatedConfig,
     ValidatedMount, ValidatedSandbox, ValidatedSecret, ValidatedTool,
@@ -31,6 +31,9 @@ fn validate(raw: RawConfig, config_path: &Path) -> Result<ValidatedConfig, Confi
     let mut mounts = Vec::new();
     for (idx, m) in raw.mount.iter().enumerate() {
         mounts.push(validate_mount(m, &format!("[[mount]] #{idx}"))?);
+    }
+    for (idx, m) in raw.agent_mount.iter().enumerate() {
+        mounts.push(validate_agent_mount(m, &format!("[[agent_mount]] #{idx}"))?);
     }
 
     let mut secrets = Vec::new();
@@ -67,14 +70,10 @@ fn validate_sandbox(raw: &crate::config::raw::RawSandbox) -> Result<ValidatedSan
     Ok(ValidatedSandbox {
         image: require_non_empty(&raw.image, "[sandbox].image")?.to_owned(),
         containerfile: expand_path(&raw.containerfile, "[sandbox].containerfile")?,
-        sandbox_pi_dir: expand_path(&raw.sandbox_pi_dir, "[sandbox].sandbox_pi_dir")?,
-        host_pi_dir: expand_path(&raw.host_pi_dir, "[sandbox].host_pi_dir")?,
-        host_claude_dir: expand_path(&raw.host_claude_dir, "[sandbox].host_claude_dir")?,
         cache_dir: expand_path(&raw.cache_dir, "[sandbox].cache_dir")?,
         gitconfig_path: expand_path(&raw.gitconfig_path, "[sandbox].gitconfig_path")?,
         auth_key: expand_path(&raw.auth_key, "[sandbox].auth_key")?,
         sign_key: expand_path(&raw.sign_key, "[sandbox].sign_key")?,
-        agent_sandbox_base: expand_path(&raw.agent_sandbox_base, "[sandbox].agent_sandbox_base")?,
         bootstrap_files: validate_string_list(&raw.bootstrap_files, "[sandbox].bootstrap_files")?,
         container_boot_dirs: validate_string_list(
             &raw.container_boot_dirs,
@@ -94,6 +93,19 @@ fn validate_mount(raw: &RawMount, ctx: &str) -> Result<ValidatedMount, ConfigErr
         create: raw.create,
         optional: raw.optional,
         source: raw.source.clone(),
+    })
+}
+
+fn validate_agent_mount(raw: &RawAgentMount, ctx: &str) -> Result<ValidatedMount, ConfigError> {
+    Ok(ValidatedMount {
+        host: expand_path(&raw.host, &format!("{ctx}.host"))?,
+        container: require_non_empty(&raw.container, &format!("{ctx}.container"))?.to_owned(),
+        mode: MountMode::Rw,
+        kind: parse_kind(&raw.kind, &format!("{ctx}.kind"))?,
+        when: MountWhen::Always,
+        create: false,
+        optional: false,
+        source: "agent_mount".to_owned(),
     })
 }
 

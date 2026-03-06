@@ -45,9 +45,6 @@ pub fn build_launch_plan(
 
     // Ensure host directories exist
     ensure_dir(cache_dir)?;
-    for dir in &profile.host_setup_dirs {
-        ensure_dir(dir)?;
-    }
     for (suffix, _, _) in CACHE_MOUNTS {
         ensure_dir(&cache_dir.join(suffix))?;
     }
@@ -87,22 +84,6 @@ pub fn build_launch_plan(
         });
         read_roots.push(path_str.clone());
         write_roots.push(path_str);
-    }
-
-    // Agent-specific mounts
-    for m in &profile.extra_mounts {
-        mounts.push(m.clone());
-        read_roots.push(m.container.clone());
-        if m.mode == MountMode::Rw {
-            write_roots.push(m.container.clone());
-        }
-    }
-
-    // Agent optional file mounts (skipped when host file doesn't exist)
-    for m in &profile.optional_file_mounts {
-        if m.host.exists() {
-            mounts.push(m.clone());
-        }
     }
 
     // Config mounts (filtered by when, optional/create handled)

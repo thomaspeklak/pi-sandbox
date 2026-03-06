@@ -40,6 +40,7 @@ If an env var is undefined during expansion, the reference is left as-is.
 ## Top-level sections
 
 - `[sandbox]` (required)
+- `[[agent_mount]]` (optional, repeatable, recommended)
 - `[[mount]]` (optional, repeatable)
 - `[[tool]]` (optional, repeatable)
 - `[[secret]]` (optional, repeatable)
@@ -56,10 +57,6 @@ Core runtime settings.
 [sandbox]
 image = "localhost/agent-sandbox:latest"
 containerfile = "~/.config/ags/Containerfile"
-sandbox_pi_dir = "~/.config/ags/pi"
-host_pi_dir = "~/.pi/agent"
-host_claude_dir = "~/.claude"
-agent_sandbox_base = "~/.config/ags"
 cache_dir = "~/.cache/ags"
 gitconfig_path = "~/.config/ags/gitconfig-agent"
 auth_key = "~/.ssh/ags-agent-auth"
@@ -75,14 +72,6 @@ passthrough_env = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY"]
   - Podman image tag used for runs.
 - `containerfile` (path, required)
   - Containerfile path used by `ags update` and auto-build fallback.
-- `sandbox_pi_dir` (path, required)
-  - Currently part of schema; per-agent launch directories derive from `agent_sandbox_base`.
-- `host_pi_dir` (path, required)
-  - Host Pi directory used during setup bootstrap.
-- `host_claude_dir` (path, required)
-  - Host Claude directory used for mounts and setup bootstrap.
-- `agent_sandbox_base` (path, optional, default `~/.config/ags`)
-  - Base directory for per-agent state (`<base>/pi`, `<base>/codex`, etc).
 - `cache_dir` (path, required)
   - Host cache dir for ssh-agent env/socket and tool caches.
 - `gitconfig_path` (path, required)
@@ -97,6 +86,39 @@ passthrough_env = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY"]
   - Directories created in container before launching agent.
 - `passthrough_env` (string array, optional)
   - Host env vars to pass into container if set and not already resolved from secrets.
+
+---
+
+## `[[agent_mount]]`
+
+Dedicated, explicit mounts for agent home-state paths (no implicit runtime mounts).
+
+```toml
+[[agent_mount]]
+host = "~/.pi"
+container = "/home/dev/.pi"
+
+[[agent_mount]]
+host = "~/.claude"
+container = "/home/dev/.claude"
+
+[[agent_mount]]
+host = "~/.claude.json"
+container = "/home/dev/.claude.json"
+kind = "file"
+```
+
+### Fields
+
+- `host` (path, required)
+- `container` (string, required)
+- `kind` (`"dir" | "file"`, optional, default `"dir"`)
+
+Behavior:
+
+- mode is always `rw`
+- `when` is always `always`
+- mount is always required (`optional=false`, `create=false`)
 
 ---
 

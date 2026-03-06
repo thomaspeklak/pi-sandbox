@@ -2,7 +2,6 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
-use crate::cli::Agent;
 use crate::config::{MountWhen, SecretSource, ValidatedConfig};
 
 use super::doctor_util::{
@@ -43,14 +42,20 @@ fn check_config_files(ck: &mut Checker, config: &ValidatedConfig) {
 
     // Self-heal: write embedded assets before checking
     let _ = crate::assets::ensure_containerfile(&config.sandbox.containerfile);
-    let pi_sandbox = config.sandbox.sandbox_dir_for(Agent::Pi);
-    let _ = crate::assets::ensure_guard_extension(&pi_sandbox);
+    if let Some(pi_host) = config.mount_host_for_container("/home/dev/.pi") {
+        let _ = crate::assets::ensure_guard_extension(&pi_host.join("agent"));
+    }
 
     check_file_exists(ck, &config.sandbox.containerfile, "Containerfile", true);
-    let settings = pi_sandbox.join("settings.json");
-    check_file_exists(ck, &settings, "sandbox settings", true);
-    let guard = pi_sandbox.join("extensions/guard.ts");
-    check_file_exists(ck, &guard, "guard extension", true);
+    if let Some(pi_host) = config.mount_host_for_container("/home/dev/.pi") {
+        let pi_agent_dir = pi_host.join("agent");
+        let settings = pi_agent_dir.join("settings.json");
+        check_file_exists(ck, &settings, "sandbox settings", true);
+        let guard = pi_agent_dir.join("extensions/guard.ts");
+        check_file_exists(ck, &guard, "guard extension", true);
+    } else {
+        ck.fail("required mount missing for container path /home/dev/.pi");
+    }
     check_gitconfig(ck, &config.sandbox.gitconfig_path);
 }
 
@@ -273,7 +278,12 @@ fn check_secrets(ck: &mut Checker, config: &ValidatedConfig) {
 
 fn check_sessions(ck: &mut Checker, config: &ValidatedConfig) {
     ck.section("Sessions / resume");
-    let pi_dir = config.sandbox.sandbox_dir_for(Agent::Pi);
+    let Some(pi_root) = config.mount_host_for_container("/home/dev/.pi") else {
+        ck.fail("required mount missing for container path /home/dev/.pi");
+        return;
+    };
+    let pi_dir = pi_root.join("agent");
+
     if pi_dir.is_dir() && pi_dir.metadata().is_ok_and(|m| !m.permissions().readonly()) {
         ck.ok(&format!("sandbox pi dir is writable: {}", pi_dir.display()));
     } else {

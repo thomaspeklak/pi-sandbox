@@ -10,6 +10,8 @@ pub struct RawConfig {
     #[serde(default)]
     pub mount: Vec<RawMount>,
     #[serde(default)]
+    pub agent_mount: Vec<RawAgentMount>,
+    #[serde(default)]
     pub tool: Vec<RawTool>,
     #[serde(default)]
     pub secret: Vec<RawSecret>,
@@ -23,15 +25,10 @@ pub struct RawConfig {
 pub struct RawSandbox {
     pub image: String,
     pub containerfile: String,
-    pub sandbox_pi_dir: String,
-    pub host_pi_dir: String,
-    pub host_claude_dir: String,
     pub cache_dir: String,
     pub gitconfig_path: String,
     pub auth_key: String,
     pub sign_key: String,
-    #[serde(default = "default_agent_sandbox_base")]
-    pub agent_sandbox_base: String,
     #[serde(default)]
     pub bootstrap_files: Vec<String>,
     #[serde(default)]
@@ -55,6 +52,14 @@ pub struct RawMount {
     pub when: String,
     #[serde(default = "default_source")]
     pub source: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RawAgentMount {
+    pub host: String,
+    pub container: String,
+    #[serde(default = "default_kind")]
+    pub kind: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -116,10 +121,6 @@ impl Default for RawUpdate {
             minimum_release_age: default_release_age(),
         }
     }
-}
-
-fn default_agent_sandbox_base() -> String {
-    "~/.config/ags".to_owned()
 }
 
 fn default_kind() -> String {

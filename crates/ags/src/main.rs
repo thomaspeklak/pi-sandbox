@@ -114,9 +114,18 @@ fn run_agent(opts: RunOptions) -> ExitCode {
         eprintln!("warning: could not write Containerfile: {e}");
     }
     if matches!(opts.agent, Agent::Pi | Agent::Shell) {
-        let pi_sandbox = config.sandbox.sandbox_dir_for(Agent::Pi);
-        if let Err(e) = ags::assets::ensure_guard_extension(&pi_sandbox) {
-            eprintln!("warning: could not write guard extension: {e}");
+        if let Some(pi_host) = config.mount_host_for_container("/home/dev/.pi") {
+            let pi_agent_dir = pi_host.join("agent");
+            if let Err(e) = ags::assets::ensure_guard_extension(&pi_agent_dir) {
+                eprintln!("warning: could not write guard extension: {e}");
+            }
+            if let Err(e) = ags::assets::ensure_settings_template(&pi_agent_dir) {
+                eprintln!("warning: could not write settings template: {e}");
+            }
+        } else {
+            eprintln!(
+                "warning: no mount found for /home/dev/.pi; cannot ensure Pi guard/settings assets"
+            );
         }
     }
 
@@ -233,10 +242,6 @@ fn create_default_config(path: &Path) -> std::io::Result<()> {
 const DEFAULT_CONFIG: &str = r#"[sandbox]
 image = "localhost/agent-sandbox:latest"
 containerfile = "~/.config/ags/Containerfile"
-sandbox_pi_dir = "~/.config/ags/pi"
-host_pi_dir = "~/.pi/agent"
-host_claude_dir = "~/.claude"
-agent_sandbox_base = "~/.config/ags"
 cache_dir = "~/.cache/ags"
 gitconfig_path = "~/.config/ags/gitconfig-agent"
 auth_key = "~/.ssh/ags-agent-auth"
@@ -260,6 +265,31 @@ container = "/home/dev/.ssh/known_hosts"
 mode = "ro"
 kind = "file"
 optional = true
+
+[[agent_mount]]
+host = "~/.claude.json"
+container = "/home/dev/.claude.json"
+kind = "file"
+
+[[agent_mount]]
+host = "~/.claude"
+container = "/home/dev/.claude"
+
+[[agent_mount]]
+host = "~/.codex"
+container = "/home/dev/.codex"
+
+[[agent_mount]]
+host = "~/.pi"
+container = "/home/dev/.pi"
+
+[[agent_mount]]
+host = "~/.config/opencode"
+container = "/home/dev/.config/opencode"
+
+[[agent_mount]]
+host = "~/.gemini"
+container = "/home/dev/.gemini"
 "#;
 
 fn default_config_path() -> PathBuf {

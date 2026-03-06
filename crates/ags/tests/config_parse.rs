@@ -7,9 +7,6 @@ fn minimal_sandbox_toml() -> &'static str {
 [sandbox]
 image = "localhost/agent-sandbox:latest"
 containerfile = "/tmp/Containerfile"
-sandbox_pi_dir = "/tmp/sandbox"
-host_pi_dir = "/tmp/host"
-host_claude_dir = "/tmp/claude"
 cache_dir = "/tmp/cache"
 gitconfig_path = "/tmp/gitconfig"
 auth_key = "/tmp/auth"
@@ -45,7 +42,6 @@ fn minimal_config_parses() {
 fn sandbox_paths_are_absolute() {
     let cfg = parse_minimal("");
     assert!(cfg.sandbox.containerfile.is_absolute());
-    assert!(cfg.sandbox.sandbox_pi_dir.is_absolute());
     assert!(cfg.sandbox.cache_dir.is_absolute());
 }
 
@@ -55,9 +51,6 @@ fn tilde_expansion_produces_absolute_path() {
 [sandbox]
 image = "test:latest"
 containerfile = "~/Containerfile"
-sandbox_pi_dir = "~/sandbox"
-host_pi_dir = "~/host"
-host_claude_dir = "~/claude"
 cache_dir = "~/cache"
 gitconfig_path = "~/gitconfig"
 auth_key = "~/auth"
@@ -107,6 +100,23 @@ mode = "ro"
     assert_eq!(m.when, MountWhen::Always);
     assert!(!m.create);
     assert!(!m.optional);
+}
+
+#[test]
+fn agent_mount_is_required_rw_always() {
+    let cfg = parse_minimal(
+        r#"
+[[agent_mount]]
+host = "/tmp/claude"
+container = "/home/dev/.claude"
+"#,
+    );
+    let m = &cfg.mounts[0];
+    assert_eq!(m.mode, MountMode::Rw);
+    assert_eq!(m.when, MountWhen::Always);
+    assert!(!m.create);
+    assert!(!m.optional);
+    assert_eq!(m.source, "agent_mount");
 }
 
 #[test]
@@ -435,9 +445,6 @@ fn empty_image_rejected() {
 [sandbox]
 image = ""
 containerfile = "/tmp/Containerfile"
-sandbox_pi_dir = "/tmp/sandbox"
-host_pi_dir = "/tmp/host"
-host_claude_dir = "/tmp/claude"
 cache_dir = "/tmp/cache"
 gitconfig_path = "/tmp/gitconfig"
 auth_key = "/tmp/auth"
@@ -455,9 +462,6 @@ fn passthrough_env_preserved() {
 [sandbox]
 image = "test:latest"
 containerfile = "/tmp/cf"
-sandbox_pi_dir = "/tmp/s"
-host_pi_dir = "/tmp/h"
-host_claude_dir = "/tmp/c"
 cache_dir = "/tmp/cache"
 gitconfig_path = "/tmp/gc"
 auth_key = "/tmp/a"
