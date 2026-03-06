@@ -166,6 +166,7 @@ fn env_has_required_inline_vars() {
         "pi should not set PI_CODING_AGENT_DIR (uses $HOME/.pi/agent by default)"
     );
     assert_eq!(find_env("SSH_AUTH_SOCK"), Some("/ssh-agent".to_owned()));
+    assert_eq!(find_env("AGS_SANDBOX"), Some("1".to_owned()));
     assert!(find_env("PNPM_HOME").is_some());
     assert!(find_env("CARGO_HOME").is_some());
 }

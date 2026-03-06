@@ -424,6 +424,7 @@ fn build_env(
         ),
         ("SSH_AUTH_SOCK".to_owned(), CONTAINER_SSH_SOCK.to_owned()),
         ("RUSTUP_HOME".to_owned(), "/usr/local/rustup".to_owned()),
+        ("AGS_SANDBOX".to_owned(), "1".to_owned()),
     ];
 
     for (key, value) in &profile.extra_env {

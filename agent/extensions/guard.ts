@@ -25,6 +25,33 @@ const SENSITIVE_PATH_PREFIXES = [
 
 const DENY_WRITE_GLOBS = [/\.env(\..*)?$/i, /\.pem$/i, /\.key$/i, /id_[a-z0-9_-]+$/i];
 
+type SandboxDetection = {
+	enabled: boolean;
+	source: string;
+};
+
+function detectSandboxAtStartup(): SandboxDetection {
+	const explicit = process.env.AGS_SANDBOX;
+	if (explicit === "1") {
+		return { enabled: true, source: "AGS_SANDBOX=1" };
+	}
+	if (explicit === "0") {
+		return { enabled: false, source: "AGS_SANDBOX=0" };
+	}
+
+	const hasGuardRoots = Boolean(process.env.AGS_GUARD_READ_ROOTS_JSON) || Boolean(process.env.AGS_GUARD_WRITE_ROOTS_JSON);
+	if (hasGuardRoots) {
+		return {
+			enabled: true,
+			source: "AGS_GUARD_*_ROOTS_JSON present (legacy signal)",
+		};
+	}
+
+	return { enabled: false, source: "No sandbox marker env vars found" };
+}
+
+const SANDBOX_DETECTION = detectSandboxAtStartup();
+
 function expandHome(inputPath: string, home: string): string {
 	if (inputPath === "~") return home;
 	if (inputPath.startsWith("~/")) return `${home}/${inputPath.slice(2)}`;
@@ -87,6 +114,19 @@ async function maybeRunDcg(pi: ExtensionAPI, command: string): Promise<string | 
 }
 
 export default function (pi: ExtensionAPI) {
+	pi.on("session_start", async (_event, ctx) => {
+		if (!ctx.hasUI) return;
+		const theme = ctx.ui.theme;
+		const status = SANDBOX_DETECTION.enabled
+			? `${theme.fg("success", "sandbox:on")}`
+			: `${theme.fg("warning", "sandbox:off")}`;
+		ctx.ui.setStatus("ags-sandbox", status);
+		ctx.ui.notify(
+			`Sandbox ${SANDBOX_DETECTION.enabled ? "ON" : "OFF"} (${SANDBOX_DETECTION.source})`,
+			SANDBOX_DETECTION.enabled ? "info" : "warning",
+		);
+	});
+
 	pi.on("tool_call", async (event, ctx) => {
 		const home = process.env.HOME ?? "/home/dev";
 		const cwd = ctx.cwd;
@@ -161,6 +201,8 @@ export default function (pi: ExtensionAPI) {
 			ctx.ui.notify(
 				[
 					"Sandbox guard active.",
+					`Sandbox mode (startup check): ${SANDBOX_DETECTION.enabled ? "ON" : "OFF"}`,
+					`Detection source: ${SANDBOX_DETECTION.source}`,
 					`Workspace root: ${ctx.cwd}`,
 					`Read roots: ${readRoots.join(", ")}`,
 					`Write roots: ${writeRoots.join(", ")}`,
