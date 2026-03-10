@@ -16,6 +16,9 @@ use crate::plan::types::*;
 const CONTAINER_HOME: &str = "/home/dev";
 const CONTAINER_GITCONFIG: &str = "/home/dev/.config/ags/gitconfig";
 const CONTAINER_SSH_SOCK: &str = "/ssh-agent";
+const HOST_SERVICES_HOST: &str = "host.containers.internal";
+const HOST_SERVICES_HINT: &str =
+    "[ags] Host services: use host.containers.internal (localhost is container-local)";
 
 /// Cache volume mappings: (host_suffix under cache_dir, container_path, env_var).
 /// An empty env_var means no environment variable is emitted for that mount.
@@ -425,6 +428,14 @@ fn build_env(
         ("SSH_AUTH_SOCK".to_owned(), CONTAINER_SSH_SOCK.to_owned()),
         ("RUSTUP_HOME".to_owned(), "/usr/local/rustup".to_owned()),
         ("AGS_SANDBOX".to_owned(), "1".to_owned()),
+        (
+            "AGS_HOST_SERVICES_HOST".to_owned(),
+            HOST_SERVICES_HOST.to_owned(),
+        ),
+        (
+            "AGS_HOST_SERVICES_HINT".to_owned(),
+            HOST_SERVICES_HINT.to_owned(),
+        ),
     ];
 
     for (key, value) in &profile.extra_env {
@@ -508,6 +519,11 @@ fn build_entrypoint(
             port = browser.debug_port
         ));
     }
+
+    script.push_str(&format!(
+        "if [ -t 1 ]; then echo {} >&2; fi; ",
+        shell_quote(HOST_SERVICES_HINT)
+    ));
 
     script.push_str(&format!("exec {}", profile.command));
     for arg in &profile.command_args {

@@ -86,6 +86,12 @@ Example:
 ags --agent shell -- -lc 'curl http://host.containers.internal:3000/health'
 ```
 
+You can verify runtime hint env vars too:
+
+```bash
+ags --agent shell -- -lc 'echo "$AGS_HOST_SERVICES_HOST" && echo "$AGS_HOST_SERVICES_HINT"'
+```
+
 ---
 
 ## Agent CLI missing inside container

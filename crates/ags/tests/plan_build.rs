@@ -167,6 +167,14 @@ fn env_has_required_inline_vars() {
     );
     assert_eq!(find_env("SSH_AUTH_SOCK"), Some("/ssh-agent".to_owned()));
     assert_eq!(find_env("AGS_SANDBOX"), Some("1".to_owned()));
+    assert_eq!(
+        find_env("AGS_HOST_SERVICES_HOST"),
+        Some("host.containers.internal".to_owned())
+    );
+    assert!(
+        find_env("AGS_HOST_SERVICES_HINT")
+            .is_some_and(|v| v.contains("localhost is container-local"))
+    );
     assert!(find_env("PNPM_HOME").is_some());
     assert!(find_env("CARGO_HOME").is_some());
 }
@@ -266,6 +274,21 @@ fn entrypoint_has_guard_extension() {
             .contains("/home/dev/.pi/agent/extensions/guard.ts")
     );
     assert!(plan.entrypoint.contains("\"$@\""));
+}
+
+#[test]
+fn entrypoint_prints_host_services_hint_for_tty_sessions() {
+    let toml = minimal_config_toml();
+    let workdir = tempfile::tempdir().unwrap();
+    let plan = build_plan_from(&toml, workdir.path());
+
+    assert!(
+        plan.entrypoint
+            .contains("host.containers.internal (localhost is container-local)"),
+        "entrypoint missing host services hint: {}",
+        plan.entrypoint
+    );
+    assert!(plan.entrypoint.contains("if [ -t 1 ]; then echo"));
 }
 
 #[test]

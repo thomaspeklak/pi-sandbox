@@ -215,6 +215,11 @@ ags --agent pi --config /path/to/config.toml
 
 To connect to services running on your host machine, use `host.containers.internal` instead.
 
+`ags` also exports runtime hints inside the container:
+
+- `AGS_HOST_SERVICES_HOST=host.containers.internal`
+- `AGS_HOST_SERVICES_HINT` (human-readable reminder)
+
 Example:
 
 ```bash
