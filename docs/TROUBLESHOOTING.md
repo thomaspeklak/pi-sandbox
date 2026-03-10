@@ -61,6 +61,33 @@ ags --agent shell -- -lc 'br --version && bv --version'
 
 ---
 
+## Cannot reach host service from agent (`localhost` confusion)
+
+Symptoms:
+
+- Service works on host but fails from inside agent/shell
+- `curl http://localhost:<port>` fails in sandbox
+
+Cause:
+
+- Agent runs inside container, so `localhost` points to container itself.
+
+### Fix
+
+Use host gateway name instead:
+
+```bash
+curl http://host.containers.internal:<port>
+```
+
+Example:
+
+```bash
+ags --agent shell -- -lc 'curl http://host.containers.internal:3000/health'
+```
+
+---
+
 ## Agent CLI missing inside container
 
 If command like `pi`, `codex`, `gemini`, `opencode`, or `claude` is missing/old.

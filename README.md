@@ -209,6 +209,18 @@ Use a non-default config file:
 ags --agent pi --config /path/to/config.toml
 ```
 
+### Host service access from inside sandbox
+
+`ags` runs agent CLIs **inside the container**, so `localhost` refers to the container itself.
+
+To connect to services running on your host machine, use `host.containers.internal` instead.
+
+Example:
+
+```bash
+ags --agent shell -- -lc 'curl http://host.containers.internal:3000/health'
+```
+
 ---
 
 ## Commands reference

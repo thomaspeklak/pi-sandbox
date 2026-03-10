@@ -52,6 +52,7 @@ ags --agent pi --browser
 - Args after `--` are passed directly to agent CLI.
 - Container runs with rootless user namespace (`keep-id`), dropped capabilities, and `no-new-privileges`.
 - Agent host state comes from explicit `[[agent_mount]]` / `[[mount]]` entries.
+- Agent processes run inside the container: `localhost` is container-local. Use `host.containers.internal` for host machine ports/services.
 
 ---
 
