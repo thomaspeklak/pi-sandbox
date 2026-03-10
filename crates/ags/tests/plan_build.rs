@@ -273,6 +273,16 @@ fn entrypoint_has_guard_extension() {
         plan.entrypoint
             .contains("/home/dev/.pi/agent/extensions/guard.ts")
     );
+    assert!(
+        plan.entrypoint.contains("--append-system-prompt"),
+        "pi should append a short host-service hint in system prompt: {}",
+        plan.entrypoint
+    );
+    assert!(
+        plan.entrypoint.contains("host.containers.internal"),
+        "pi host-service system hint missing: {}",
+        plan.entrypoint
+    );
     assert!(plan.entrypoint.contains("\"$@\""));
 }
 
@@ -510,6 +520,16 @@ fn claude_agent_entrypoint() {
         plan.entrypoint
     );
     assert!(
+        plan.entrypoint.contains("--append-system-prompt"),
+        "claude should append host-service hint in system prompt: {}",
+        plan.entrypoint
+    );
+    assert!(
+        plan.entrypoint.contains("host.containers.internal"),
+        "claude host-service system hint missing: {}",
+        plan.entrypoint
+    );
+    assert!(
         !plan.entrypoint.contains("guard.ts"),
         "claude should not have guard.ts: {}",
         plan.entrypoint
@@ -581,6 +601,16 @@ fn codex_agent_entrypoint() {
     assert!(
         plan.entrypoint.contains("exec codex"),
         "codex entrypoint should exec codex: {}",
+        plan.entrypoint
+    );
+    assert!(
+        plan.entrypoint.contains("developer_instructions="),
+        "codex should inject host-service developer hint: {}",
+        plan.entrypoint
+    );
+    assert!(
+        plan.entrypoint.contains("host.containers.internal"),
+        "codex host-service hint missing: {}",
         plan.entrypoint
     );
     assert!(

@@ -1,6 +1,9 @@
 use crate::cli::Agent;
 use crate::config::ValidatedConfig;
 
+const HOST_SERVICE_PROMPT_HINT: &str =
+    "Sandbox: use host.containers.internal (localhost is container-local).";
+
 /// Agent-specific launch profile: command, args, env, and boot behavior.
 pub struct AgentProfile {
     pub command: String,
@@ -35,6 +38,8 @@ fn pi_profile(config: &ValidatedConfig) -> AgentProfile {
             "--no-extensions".to_owned(),
             "-e".to_owned(),
             "/home/dev/.pi/agent/extensions/guard.ts".to_owned(),
+            "--append-system-prompt".to_owned(),
+            HOST_SERVICE_PROMPT_HINT.to_owned(),
         ],
         extra_env: vec![],
         extra_boot_dirs: vec![],
@@ -51,6 +56,8 @@ fn claude_profile() -> AgentProfile {
             "--dangerously-skip-permissions".to_owned(),
             "--settings".to_owned(),
             "{\"sandbox\":{\"enabled\":false}}".to_owned(),
+            "--append-system-prompt".to_owned(),
+            HOST_SERVICE_PROMPT_HINT.to_owned(),
         ],
         extra_env: vec![],
         extra_boot_dirs: vec![],
@@ -63,13 +70,23 @@ fn claude_profile() -> AgentProfile {
 fn codex_profile() -> AgentProfile {
     AgentProfile {
         command: "codex".to_owned(),
-        command_args: vec![],
+        command_args: vec![
+            "-c".to_owned(),
+            format!(
+                "developer_instructions={}",
+                toml_basic_string(HOST_SERVICE_PROMPT_HINT)
+            ),
+        ],
         extra_env: vec![],
         extra_boot_dirs: vec![],
         entrypoint_setup: String::new(),
         browser_skill_flag: None,
         browser_skill_path: String::new(),
     }
+}
+
+fn toml_basic_string(value: &str) -> String {
+    format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""))
 }
 
 fn gemini_profile() -> AgentProfile {

@@ -65,7 +65,9 @@ fn pi_profile_has_guard_args() {
         vec![
             "--no-extensions",
             "-e",
-            "/home/dev/.pi/agent/extensions/guard.ts"
+            "/home/dev/.pi/agent/extensions/guard.ts",
+            "--append-system-prompt",
+            "Sandbox: use host.containers.internal (localhost is container-local)."
         ]
     );
 }
@@ -114,7 +116,9 @@ fn claude_profile_command() {
         vec![
             "--dangerously-skip-permissions",
             "--settings",
-            "{\"sandbox\":{\"enabled\":false}}"
+            "{\"sandbox\":{\"enabled\":false}}",
+            "--append-system-prompt",
+            "Sandbox: use host.containers.internal (localhost is container-local)."
         ]
     );
 }
@@ -158,7 +162,12 @@ fn codex_profile_basics() {
     let config = minimal_config();
     let profile = profile_for(Agent::Codex, &config);
     assert_eq!(profile.command, "codex");
-    assert!(profile.command_args.is_empty());
+    assert_eq!(profile.command_args.len(), 2);
+    assert_eq!(profile.command_args[0], "-c");
+    assert!(
+        profile.command_args[1].starts_with("developer_instructions=\"")
+            && profile.command_args[1].contains("host.containers.internal")
+    );
     assert!(profile.extra_env.is_empty());
     assert!(profile.extra_boot_dirs.is_empty());
     assert!(profile.browser_skill_flag.is_none());
