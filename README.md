@@ -220,11 +220,21 @@ To connect to services running on your host machine, use `host.containers.intern
 - `AGS_HOST_SERVICES_HOST=host.containers.internal`
 - `AGS_HOST_SERVICES_HINT` (human-readable reminder)
 
+And for agents with prompt hooks (`pi`, `claude`, `codex`), `ags` injects a short startup hint into the agent prompt context.
+
 Example:
 
 ```bash
 ags --agent shell -- -lc 'curl http://host.containers.internal:3000/health'
 ```
+
+Postgres example (`psql` is available in the sandbox image after `ags update`):
+
+```bash
+ags --agent shell -- -lc 'PGPASSWORD="${PGPASSWORD:-postgres}" psql -h "${AGS_HOST_SERVICES_HOST}" -p "${PGPORT:-5432}" -U "${PGUSER:-postgres}" "${PGDATABASE:-postgres}"'
+```
+
+Tip: add `PGPASSWORD`, `PGUSER`, `PGDATABASE`, and `PGPORT` to `[sandbox].passthrough_env` if you want host values to flow into the container automatically.
 
 ---
 

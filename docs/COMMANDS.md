@@ -54,7 +54,10 @@ ags --agent pi --browser
 - Agent host state comes from explicit `[[agent_mount]]` / `[[mount]]` entries.
 - Agent processes run inside the container: `localhost` is container-local. Use `host.containers.internal` for host machine ports/services.
 - Runtime env vars are injected for discoverability: `AGS_HOST_SERVICES_HOST` and `AGS_HOST_SERVICES_HINT`.
+- `pi`/`claude`/`codex` runs also inject a short host-service hint into prompt context.
 - Interactive launches print a one-line host-service reminder before the agent CLI starts.
+- Postgres quick-connect from host into sandbox shell:
+  - `ags --agent shell -- -lc 'PGPASSWORD="${PGPASSWORD:-postgres}" psql -h "${AGS_HOST_SERVICES_HOST}" -p "${PGPORT:-5432}" -U "${PGUSER:-postgres}" "${PGDATABASE:-postgres}"'`
 
 ---
 

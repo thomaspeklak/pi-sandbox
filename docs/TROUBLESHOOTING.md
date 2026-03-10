@@ -61,6 +61,19 @@ ags --agent shell -- -lc 'br --version && bv --version'
 
 ---
 
+## `psql` missing inside container
+
+If `psql` is not found in sandbox shell.
+
+### Fix
+
+```bash
+ags update
+ags --agent shell -- -lc 'psql --version'
+```
+
+---
+
 ## Cannot reach host service from agent (`localhost` confusion)
 
 Symptoms:
