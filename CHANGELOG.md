@@ -2,14 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [v0.3.0] — 2026-03-10
 
 ### Features
 
-- add tmux to the sandbox image with a minimal version-controlled `tmux.conf` for team pane workflows
-- add an opt-in `--tmux` run flag to launch the selected agent inside a tmux session
-- include `kitty-terminfo` so tmux works when the host terminal uses `TERM=xterm-kitty`
+- feat: add tmux sandbox support (0891d30)
+- feat(run): inject concise host-service hint into agent prompts (0d6a420)
+- feat(sandbox): add psql client and Postgres quick-connect docs (aece58c)
+- feat(run): inject host-service runtime hints in sandbox (0d73e41)
+- feat(update): bundle br/bv releases into sandbox image (4b6f1f0)
+- feat(guard): move sandbox indicator out of footer (ab34af6)
 
+### Chores / Other
+
+- docs: clarify host service access from sandbox (db0f9d1)
 
 ## [v0.2.0] — 2026-03-06
 
