@@ -306,7 +306,7 @@ Tip: add `PGPASSWORD`, `PGUSER`, `PGDATABASE`, and `PGPORT` to `[sandbox].passth
 - `ags doctor` — run environment + config health checks
 - `ags update` — rebuild container image from `Containerfile` and refresh bundled `br`/`bv` binaries
 - `ags update-agents` — install/update agent CLIs in persistent volumes
-- `ags install [--link-self] [--force] [--add-agent-mounts] [--add-dir-mount|-m <path> ...]` — install assets/config layout, optional self-link, optional config mount block append
+- `ags install [--link-self] [--force] [--add-agent-mounts]` — install assets/config layout, optional self-link, optional config mount block append
 - `ags uninstall` — currently reserved/no-op cleanup
 - `ags create-aliases` — create managed wrappers and/or shell alias blocks
 - `ags completions --shell <bash|zsh|fish>` — print shell completion script
@@ -323,8 +323,8 @@ ags create-aliases --mode wrappers|aliases|both --shell fish|zsh|bash --force
 ### Shell completions
 
 ```bash
-# append extra same-path directory mounts into config.toml
-ags install -m ~/code -m ~/Downloads
+# add extra same-path directory mounts for a single run
+ags --agent claude -d ~/code -d ~/Downloads
 
 # bash
 ags completions --shell bash > ~/.local/share/bash-completion/completions/ags
@@ -341,6 +341,7 @@ ags completions --shell fish > ~/.config/fish/completions/ags.fish
 - `--agent <pi|claude|codex|gemini|opencode|shell>` (required for run mode)
 - `--browser`
 - `--config <path>`
+- `--add-dir <path>` / `-d <path>` (repeatable, run only)
 
 ---
 

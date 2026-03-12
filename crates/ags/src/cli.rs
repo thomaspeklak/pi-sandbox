@@ -57,6 +57,7 @@ pub struct RunOptions {
     pub browser: bool,
     pub tmux: bool,
     pub config_path: Option<PathBuf>,
+    pub add_dirs: Vec<PathBuf>,
     pub passthrough_args: Vec<String>,
 }
 
@@ -108,7 +109,6 @@ pub struct InstallOptions {
     pub link_self: bool,
     pub force: bool,
     pub add_agent_mounts: bool,
-    pub add_dir_mounts: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -155,7 +155,7 @@ impl fmt::Display for CliError {
             Self::MissingConfigValue => f.write_str("missing value for --config"),
             Self::MissingShellValue => f.write_str("missing value for --shell"),
             Self::MissingAliasModeValue => f.write_str("missing value for --mode"),
-            Self::MissingMountPathValue => f.write_str("missing value for --add-dir-mount / -m"),
+            Self::MissingMountPathValue => f.write_str("missing value for --add-dir / -d"),
             Self::InvalidAgent(agent) => write!(f, "invalid agent '{agent}'"),
             Self::InvalidShell(shell) => {
                 write!(f, "invalid shell '{shell}' (expected fish|zsh|bash)")
@@ -212,6 +212,7 @@ where
     let mut browser = false;
     let mut tmux = false;
     let mut config_path: Option<PathBuf> = None;
+    let mut add_dirs = Vec::new();
     let mut passthrough_args = Vec::new();
 
     // Process the first arg we already consumed (handle `--` as passthrough separator)
@@ -225,6 +226,7 @@ where
             &mut browser,
             &mut tmux,
             &mut config_path,
+            &mut add_dirs,
         )?;
 
         while let Some(arg) = iter.next() {
@@ -239,6 +241,7 @@ where
                 &mut browser,
                 &mut tmux,
                 &mut config_path,
+                &mut add_dirs,
             )?;
         }
     }
@@ -250,6 +253,7 @@ where
         browser,
         tmux,
         config_path,
+        add_dirs,
         passthrough_args,
     }))
 }
@@ -261,6 +265,7 @@ fn parse_run_arg<I: Iterator<Item = String>>(
     browser: &mut bool,
     tmux: &mut bool,
     config_path: &mut Option<PathBuf>,
+    add_dirs: &mut Vec<PathBuf>,
 ) -> Result<(), CliError> {
     if arg == "-h" || arg == "--help" {
         return Err(CliError::HelpRequested);
@@ -304,6 +309,20 @@ fn parse_run_arg<I: Iterator<Item = String>>(
         return Ok(());
     }
 
+    if arg == "--add-dir" || arg == "-d" {
+        let raw = iter.next().ok_or(CliError::MissingMountPathValue)?;
+        add_dirs.push(PathBuf::from(raw));
+        return Ok(());
+    }
+
+    if let Some(raw) = arg.strip_prefix("--add-dir=") {
+        if raw.is_empty() {
+            return Err(CliError::MissingMountPathValue);
+        }
+        add_dirs.push(PathBuf::from(raw));
+        return Ok(());
+    }
+
     if arg.starts_with('-') {
         return Err(CliError::UnexpectedFlag(arg.to_owned()));
     }
@@ -311,16 +330,15 @@ fn parse_run_arg<I: Iterator<Item = String>>(
     Err(CliError::UnexpectedPositional(arg.to_owned()))
 }
 
-fn parse_install_args<I>(mut iter: I) -> Result<InstallOptions, CliError>
+fn parse_install_args<I>(iter: I) -> Result<InstallOptions, CliError>
 where
     I: Iterator<Item = String>,
 {
     let mut link_self = false;
     let mut force = false;
     let mut add_agent_mounts = false;
-    let mut add_dir_mounts = Vec::new();
 
-    while let Some(arg) = iter.next() {
+    for arg in iter {
         if arg == "-h" || arg == "--help" {
             return Err(CliError::HelpRequested);
         }
@@ -336,11 +354,6 @@ where
             add_agent_mounts = true;
             continue;
         }
-        if arg == "--add-dir-mount" || arg == "-m" {
-            let value = iter.next().ok_or(CliError::MissingMountPathValue)?;
-            add_dir_mounts.push(value);
-            continue;
-        }
         if arg.starts_with('-') {
             return Err(CliError::UnexpectedFlag(arg));
         }
@@ -351,7 +364,6 @@ where
         link_self,
         force,
         add_agent_mounts,
-        add_dir_mounts,
     })
 }
 
@@ -459,10 +471,9 @@ pub fn help_text() -> &'static str {
      \x20 completions     Print shell completion script to stdout\n\
      \n\
      install flags:\n\
-     \x20 --link-self              Link current ags executable to ~/.local/bin/ags\n\
-     \x20 --force                  Replace existing ~/.local/bin/ags when used with --link-self\n\
-     \x20 --add-agent-mounts       Append default [[agent_mount]] entries to ~/.config/ags/config.toml\n\
-     \x20 --add-dir-mount, -m <path>  Append a same-path [[mount]] directory entry (repeatable)\n\
+     \x20 --link-self        Link current ags executable to ~/.local/bin/ags\n\
+     \x20 --force            Replace existing ~/.local/bin/ags when used with --link-self\n\
+     \x20 --add-agent-mounts Append default [[agent_mount]] entries to ~/.config/ags/config.toml\n\
      \n\
      create-aliases flags:\n\
      \x20 --shell <name>    Target shell for alias blocks (fish|zsh|bash; autodetect if omitted)\n\
@@ -473,8 +484,9 @@ pub fn help_text() -> &'static str {
      \x20 --shell <name>    Shell to generate completion script for (fish|zsh|bash)\n\
      \n\
      Run flags:\n\
-     \x20 --agent <name>   Agent to run (required), or 'shell' for interactive bash\n\
-     \x20 --browser        Enable browser sidecar\n\
-     \x20 --tmux           Launch the agent inside a tmux session (opt-in)\n\
-     \x20 --config <path>  Override config file path\n"
+     \x20 --agent <name>    Agent to run (required), or 'shell' for interactive bash\n\
+     \x20 --browser         Enable browser sidecar\n\
+     \x20 --tmux            Launch the agent inside a tmux session (opt-in)\n\
+     \x20 --config <path>   Override config file path\n\
+     \x20 --add-dir, -d <path>  Add an extra same-path directory mount for this run (repeatable)\n"
 }

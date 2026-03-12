@@ -82,7 +82,6 @@ fn parses_install_defaults() {
             link_self: false,
             force: false,
             add_agent_mounts: false,
-            add_dir_mounts: vec![],
         }))
     );
 }
@@ -96,7 +95,6 @@ fn parses_install_flags() {
             link_self: true,
             force: true,
             add_agent_mounts: false,
-            add_dir_mounts: vec![],
         }))
     );
 }
@@ -110,36 +108,41 @@ fn parses_install_add_agent_mounts_flag() {
             link_self: false,
             force: false,
             add_agent_mounts: true,
-            add_dir_mounts: vec![],
         }))
     );
 }
 
 #[test]
-fn parses_install_add_dir_mount_flags() {
+fn parses_run_add_dir_flags() {
     let cmd = parse_args(args(&[
         "ags",
-        "install",
-        "--add-dir-mount",
+        "--agent",
+        "claude",
+        "--add-dir",
         "~/code",
-        "-m",
+        "-d",
         "/data/shared",
     ]))
     .unwrap();
-    assert_eq!(
-        cmd,
-        Command::Sub(SubCommand::Install(InstallOptions {
-            link_self: false,
-            force: false,
-            add_agent_mounts: false,
-            add_dir_mounts: vec!["~/code".into(), "/data/shared".into()],
-        }))
-    );
+
+    match cmd {
+        Command::Run(opts) => {
+            assert_eq!(opts.agent, Agent::Claude);
+            assert_eq!(
+                opts.add_dirs,
+                vec![
+                    std::path::PathBuf::from("~/code"),
+                    std::path::PathBuf::from("/data/shared")
+                ]
+            );
+        }
+        _ => panic!("expected Run command"),
+    }
 }
 
 #[test]
-fn install_add_dir_mount_requires_value() {
-    let err = parse_args(args(&["ags", "install", "-m"])).expect_err("expected parse error");
+fn run_add_dir_requires_value() {
+    let err = parse_args(args(&["ags", "--agent", "pi", "-d"])).expect_err("expected parse error");
     assert_eq!(err, CliError::MissingMountPathValue);
 }
 

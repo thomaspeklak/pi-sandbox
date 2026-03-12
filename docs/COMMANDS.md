@@ -8,7 +8,7 @@ This document explains what each `ags` command does and what side effects to exp
 
 ```bash
 ags [command]
-ags --agent <pi|claude|codex|gemini|opencode|shell> [--browser] [--tmux] [--config PATH] -- [agent args...]
+ags --agent <pi|claude|codex|gemini|opencode|shell> [--browser] [--tmux] [--config PATH] [--add-dir PATH ...] -- [agent args...]
 ```
 
 Subcommands:
@@ -35,6 +35,7 @@ ags --agent pi
 ags --agent claude -- --model sonnet
 ags --agent pi --browser
 ags --agent pi --tmux
+ags --agent claude -d ~/code -d ~/Downloads
 ```
 
 ### What happens on run
@@ -52,6 +53,7 @@ ags --agent pi --tmux
 ### Notes
 
 - Args after `--` are passed directly to agent CLI.
+- `--add-dir <path>` / `-d <path>` adds an extra same-path directory mount for the current run only; repeat it to add multiple directories.
 - Container runs with rootless user namespace (`keep-id`), dropped capabilities, and `no-new-privileges`.
 - Agent host state comes from explicit `[[agent_mount]]` / `[[mount]]` entries.
 - Agent processes run inside the container: `localhost` is container-local. Use `host.containers.internal` for host machine ports/services.
@@ -183,7 +185,6 @@ It can be overridden with `AGS_AGENT_DIR`.
 - `--link-self` : create `~/.local/bin/ags` symlink to current executable
 - `--force` : replace existing link/file where applicable
 - `--add-agent-mounts` : append default required `[[agent_mount]]` entries to `~/.config/ags/config.toml`
-- `--add-dir-mount`, `-m <path>` : append a same-path `[[mount]]` directory entry to `~/.config/ags/config.toml` (repeatable)
 
 ---
 

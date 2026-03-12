@@ -60,7 +60,7 @@ const BASH: &str = r#"_ags_completion() {
   done
 
   if (( COMP_CWORD == 1 )); then
-    COMPREPLY=( $(compgen -W "$commands --agent --browser --tmux --config -h --help" -- "$cur") )
+    COMPREPLY=( $(compgen -W "$commands --agent --browser --tmux --config --add-dir -d -h --help" -- "$cur") )
     return 0
   fi
 
@@ -70,7 +70,7 @@ const BASH: &str = r#"_ags_completion() {
       return 0
       ;;
     install)
-      COMPREPLY=( $(compgen -W "--link-self --force --add-agent-mounts --add-dir-mount -m -h --help" -- "$cur") )
+      COMPREPLY=( $(compgen -W "--link-self --force --add-agent-mounts -h --help" -- "$cur") )
       return 0
       ;;
     create-aliases)
@@ -127,8 +127,8 @@ const BASH: &str = r#"_ags_completion() {
       COMPREPLY=( $(compgen -W "$agents" -- "$cur") )
       return 0
       ;;
-    --config)
-      COMPREPLY=( $(compgen -f -- "$cur") )
+    --config|--add-dir|-d)
+      COMPREPLY=( $(compgen -d -- "$cur") )
       return 0
       ;;
   esac
@@ -147,7 +147,14 @@ const BASH: &str = r#"_ags_completion() {
     return 0
   fi
 
-  COMPREPLY=( $(compgen -W "--agent --browser --tmux --config -h --help" -- "$cur") )
+  if [[ "$cur" == --add-dir=* ]]; then
+    local value="${cur#--add-dir=}"
+    COMPREPLY=( $(compgen -d -- "$value") )
+    COMPREPLY=( "${COMPREPLY[@]/#/--add-dir=}" )
+    return 0
+  fi
+
+  COMPREPLY=( $(compgen -W "--agent --browser --tmux --config --add-dir -d -h --help" -- "$cur") )
 }
 
 complete -F _ags_completion ags
@@ -164,7 +171,7 @@ modes=(wrappers aliases both)
 if (( CURRENT == 2 )); then
   _alternative \
     'subcommand:subcommand:(setup doctor update update-agents install uninstall create-aliases completions)' \
-    'run-flag:run flag:(--agent --browser --tmux --config -h --help)'
+    'run-flag:run flag:(--agent --browser --tmux --config --add-dir -d -h --help)'
   return
 fi
 
@@ -178,8 +185,6 @@ case "$words[2]" in
       '--link-self[Link current ags executable to ~/.local/bin/ags]' \
       '--force[Replace existing ~/.local/bin/ags when used with --link-self]' \
       '--add-agent-mounts[Append default [[agent_mount]] entries to ~/.config/ags/config.toml]' \
-      '(-m)--add-dir-mount[Append a same-path [[mount]] directory entry]:host directory:_files -/' \
-      '(--add-dir-mount)-m[Append a same-path [[mount]] directory entry]:host directory:_files -/' \
       '(-h --help)'{-h,--help}'[Show help]'
     return
     ;;
@@ -204,6 +209,8 @@ _arguments -S \
   '--browser[Enable browser sidecar]' \
   '--tmux[Launch the agent inside a tmux session]' \
   '--config[Override config file path]:config file:_files' \
+  '(-d)--add-dir[Add an extra same-path directory mount for this run]:host directory:_files -/' \
+  '(--add-dir)-d[Add an extra same-path directory mount for this run]:host directory:_files -/' \
   '(-h --help)'{-h,--help}'[Show help]'
 "#;
 
@@ -228,13 +235,13 @@ complete -c ags -n "__fish_use_subcommand" -l agent -r -a "$__ags_agents" -d "Ag
 complete -c ags -n "__fish_use_subcommand" -l browser -d "Enable browser sidecar"
 complete -c ags -n "__fish_use_subcommand" -l tmux -d "Launch the agent inside a tmux session"
 complete -c ags -n "__fish_use_subcommand" -l config -r -d "Override config file path"
+complete -c ags -n "__fish_use_subcommand" -l add-dir -s d -r -d "Add an extra same-path directory mount for this run"
 complete -c ags -n "__fish_use_subcommand" -s h -l help -d "Show help"
 
 # install
 complete -c ags -n "__fish_seen_subcommand_from install" -l link-self -d "Link ags to ~/.local/bin/ags"
 complete -c ags -n "__fish_seen_subcommand_from install" -l force -d "Replace existing target"
 complete -c ags -n "__fish_seen_subcommand_from install" -l add-agent-mounts -d "Append default [[agent_mount]] entries"
-complete -c ags -n "__fish_seen_subcommand_from install" -l add-dir-mount -s m -r -d "Append a same-path [[mount]] directory entry"
 complete -c ags -n "__fish_seen_subcommand_from install" -s h -l help -d "Show help"
 
 # create-aliases
@@ -267,7 +274,8 @@ mod tests {
         assert!(script.contains("create-aliases"));
         assert!(script.contains("completions"));
         assert!(script.contains("--add-agent-mounts"));
-        assert!(script.contains("--add-dir-mount"));
+        assert!(script.contains("--add-dir"));
+        assert!(script.contains("-d"));
     }
 
     #[test]

@@ -15,6 +15,8 @@ pub enum PlanError {
     },
     /// A required (non-optional) mount's host path does not exist.
     MountMissing { host: PathBuf, context: String },
+    /// A requested mount path exists but is not a directory.
+    MountNotDir { host: PathBuf, context: String },
     /// An environment variable has an invalid value.
     InvalidEnv { var: String, value: String },
 }
@@ -30,6 +32,13 @@ impl fmt::Display for PlanError {
                 write!(
                     f,
                     "required mount source missing: {} ({context})",
+                    host.display()
+                )
+            }
+            Self::MountNotDir { host, context } => {
+                write!(
+                    f,
+                    "mount source is not a directory: {} ({context})",
                     host.display()
                 )
             }

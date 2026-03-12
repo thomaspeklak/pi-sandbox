@@ -78,6 +78,7 @@ fn build_plan_from_agent(toml: &str, workdir: &Path, agent: Agent) -> ags::plan:
             ssh_auth_sock: None,
             resolved_secrets: &secrets,
             auth_proxy_runtime_dir: None,
+            extra_mount_dirs: &[],
         },
     )
     .unwrap()
@@ -266,6 +267,7 @@ debug_port = 9222
             ssh_auth_sock: None,
             resolved_secrets: &secrets,
             auth_proxy_runtime_dir: None,
+            extra_mount_dirs: &[],
         },
     )
     .unwrap();
@@ -326,6 +328,7 @@ fn tmux_mode_wraps_agent_command() {
             ssh_auth_sock: None,
             resolved_secrets: &secrets,
             auth_proxy_runtime_dir: None,
+            extra_mount_dirs: &[],
         },
     )
     .unwrap();
@@ -397,6 +400,7 @@ mode = \"ro\"\n",
             ssh_auth_sock: None,
             resolved_secrets: &secrets,
             auth_proxy_runtime_dir: None,
+            extra_mount_dirs: &[],
         },
     );
     assert!(result.is_err());
@@ -489,6 +493,7 @@ fn secrets_in_env_file() {
             ssh_auth_sock: None,
             resolved_secrets: &secrets,
             auth_proxy_runtime_dir: None,
+            extra_mount_dirs: &[],
         },
     )
     .unwrap();
@@ -518,12 +523,65 @@ fn ssh_socket_mounted_when_provided() {
             ssh_auth_sock: Some(sock),
             resolved_secrets: &secrets,
             auth_proxy_runtime_dir: None,
+            extra_mount_dirs: &[],
         },
     )
     .unwrap();
 
     let found = plan.mounts.iter().any(|m| m.container == "/ssh-agent");
     assert!(found, "SSH socket should be mounted");
+}
+
+#[test]
+fn runtime_add_dir_mounts_are_included() {
+    let toml = minimal_config_toml();
+    let workdir = tempfile::tempdir().unwrap();
+    let extra_dir = tempfile::tempdir().unwrap();
+    let config = parse_toml_str(&toml, Path::new("/test/config.toml")).unwrap();
+    let secrets = HashMap::new();
+    let extra_dirs = vec![extra_dir.path().to_path_buf()];
+    let plan = build_launch_plan(
+        &config,
+        workdir.path(),
+        Agent::Pi,
+        BuildLaunchPlanOptions {
+            browser_mode: false,
+            tmux_mode: false,
+            ssh_auth_sock: None,
+            resolved_secrets: &secrets,
+            auth_proxy_runtime_dir: None,
+            extra_mount_dirs: &extra_dirs,
+        },
+    )
+    .unwrap();
+
+    let extra = extra_dir.path().to_string_lossy().to_string();
+    assert!(plan.mounts.iter().any(|m| m.container == extra));
+    assert!(plan.env.read_roots_json.contains(&extra));
+    assert!(plan.env.write_roots_json.contains(&extra));
+}
+
+#[test]
+fn runtime_add_dir_missing_path_is_error() {
+    let toml = minimal_config_toml();
+    let workdir = tempfile::tempdir().unwrap();
+    let config = parse_toml_str(&toml, Path::new("/test/config.toml")).unwrap();
+    let secrets = HashMap::new();
+    let extra_dirs = vec![Path::new("/definitely/missing/ags-extra-dir").to_path_buf()];
+    let result = build_launch_plan(
+        &config,
+        workdir.path(),
+        Agent::Pi,
+        BuildLaunchPlanOptions {
+            browser_mode: false,
+            tmux_mode: false,
+            ssh_auth_sock: None,
+            resolved_secrets: &secrets,
+            auth_proxy_runtime_dir: None,
+            extra_mount_dirs: &extra_dirs,
+        },
+    );
+    assert!(matches!(result, Err(PlanError::MountMissing { .. })));
 }
 
 #[test]
@@ -541,6 +599,7 @@ fn nonexistent_workdir_is_error() {
             ssh_auth_sock: None,
             resolved_secrets: &secrets,
             auth_proxy_runtime_dir: None,
+            extra_mount_dirs: &[],
         },
     );
     assert!(matches!(result, Err(PlanError::WorkdirResolve(_))));
@@ -573,6 +632,7 @@ pi_skill_path = "/home/dev/browser-tools"
             ssh_auth_sock: None,
             resolved_secrets: &secrets,
             auth_proxy_runtime_dir: None,
+            extra_mount_dirs: &[],
         },
     )
     .unwrap();
@@ -834,6 +894,7 @@ fn auth_proxy_mounts_and_env_when_enabled() {
             ssh_auth_sock: None,
             resolved_secrets: &secrets,
             auth_proxy_runtime_dir: Some(auth_dir.path()),
+            extra_mount_dirs: &[],
         },
     )
     .unwrap();

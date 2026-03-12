@@ -254,6 +254,7 @@ fn run_agent(opts: RunOptions) -> ExitCode {
             ssh_auth_sock: ssh_sock.as_deref(),
             resolved_secrets: &resolved_secrets,
             auth_proxy_runtime_dir: auth_proxy_runtime_dir.as_deref(),
+            extra_mount_dirs: &opts.add_dirs,
         },
     ) {
         Ok(p) => p,

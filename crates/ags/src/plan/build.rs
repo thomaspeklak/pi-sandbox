@@ -27,6 +27,7 @@ pub struct BuildLaunchPlanOptions<'a> {
     pub ssh_auth_sock: Option<&'a Path>,
     pub resolved_secrets: &'a HashMap<String, String>,
     pub auth_proxy_runtime_dir: Option<&'a Path>,
+    pub extra_mount_dirs: &'a [PathBuf],
 }
 
 /// Cache volume mappings: (host_suffix under cache_dir, container_path, env_var).
@@ -55,6 +56,7 @@ pub fn build_launch_plan(
         ssh_auth_sock,
         resolved_secrets,
         auth_proxy_runtime_dir,
+        extra_mount_dirs,
     } = options;
     let profile = agent::profile_for(agent, config);
     let workdir_mapping = resolve_workdir(workdir)?;
@@ -108,6 +110,14 @@ pub fn build_launch_plan(
     expand_config_mounts(
         &config.mounts,
         browser_mode,
+        &mut mounts,
+        &mut read_roots,
+        &mut write_roots,
+    )?;
+
+    // Extra runtime directory mounts from CLI flags.
+    add_runtime_dir_mounts(
+        extra_mount_dirs,
         &mut mounts,
         &mut read_roots,
         &mut write_roots,
@@ -365,6 +375,48 @@ fn expand_config_mounts(
             write_roots.push(m.container.clone());
         }
     }
+    Ok(())
+}
+
+fn add_runtime_dir_mounts(
+    extra_mount_dirs: &[PathBuf],
+    mounts: &mut Vec<PlanMount>,
+    read_roots: &mut Vec<String>,
+    write_roots: &mut Vec<String>,
+) -> Result<(), PlanError> {
+    for raw_dir in extra_mount_dirs {
+        let host = fs::canonicalize(raw_dir).map_err(|_| PlanError::MountMissing {
+            host: raw_dir.clone(),
+            context: "runtime --add-dir mount".to_owned(),
+        })?;
+        if !host.is_dir() {
+            return Err(PlanError::MountNotDir {
+                host,
+                context: "runtime --add-dir mount".to_owned(),
+            });
+        }
+
+        let container = host.to_string_lossy().to_string();
+        if mounts
+            .iter()
+            .any(|m| m.host == host && m.container == container)
+        {
+            continue;
+        }
+
+        mounts.push(PlanMount {
+            host,
+            container: container.clone(),
+            mode: MountMode::Rw,
+        });
+        if !read_roots.contains(&container) {
+            read_roots.push(container.clone());
+        }
+        if !write_roots.contains(&container) {
+            write_roots.push(container);
+        }
+    }
+
     Ok(())
 }
 
