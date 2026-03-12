@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.0] — 2026-03-12
+
+### Features
+
+- feat: add update-available notification via GitHub releases (4b2609a)
+- feat: add ephemeral auth proxy for sandbox browser opens and OAuth callbacks (616a02f)
+- feat(guard): add Claude Code PreToolUse guard hook and plugin (5afd84d)
+
+### Bug Fixes
+
+- fix: resolve fmt clippy and test issues (32393e9)
+- fix: set HOME/PATH explicitly for Claude install fallback (#3) (30d535d)
+
+### Chores / Other
+
+- chore: add beads issue tracker (00e3844)
+- merge: integrate feat/claude-guard-hooks into main (6d7b545)
+- merge: resolve conflicts with main (auth proxy + guard hooks) (8cf2b4f)
+- Dim sandbox-on indicator and add JDK (aa1d26f)
+
 ## [v0.3.0] — 2026-03-10
 
 ### Features
