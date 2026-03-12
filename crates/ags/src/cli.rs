@@ -108,6 +108,7 @@ pub struct InstallOptions {
     pub link_self: bool,
     pub force: bool,
     pub add_agent_mounts: bool,
+    pub add_dir_mounts: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -135,6 +136,7 @@ pub enum CliError {
     MissingConfigValue,
     MissingShellValue,
     MissingAliasModeValue,
+    MissingMountPathValue,
     InvalidAgent(String),
     InvalidShell(String),
     InvalidAliasMode(String),
@@ -153,6 +155,7 @@ impl fmt::Display for CliError {
             Self::MissingConfigValue => f.write_str("missing value for --config"),
             Self::MissingShellValue => f.write_str("missing value for --shell"),
             Self::MissingAliasModeValue => f.write_str("missing value for --mode"),
+            Self::MissingMountPathValue => f.write_str("missing value for --add-dir-mount / -m"),
             Self::InvalidAgent(agent) => write!(f, "invalid agent '{agent}'"),
             Self::InvalidShell(shell) => {
                 write!(f, "invalid shell '{shell}' (expected fish|zsh|bash)")
@@ -308,15 +311,16 @@ fn parse_run_arg<I: Iterator<Item = String>>(
     Err(CliError::UnexpectedPositional(arg.to_owned()))
 }
 
-fn parse_install_args<I>(iter: I) -> Result<InstallOptions, CliError>
+fn parse_install_args<I>(mut iter: I) -> Result<InstallOptions, CliError>
 where
     I: Iterator<Item = String>,
 {
     let mut link_self = false;
     let mut force = false;
     let mut add_agent_mounts = false;
+    let mut add_dir_mounts = Vec::new();
 
-    for arg in iter {
+    while let Some(arg) = iter.next() {
         if arg == "-h" || arg == "--help" {
             return Err(CliError::HelpRequested);
         }
@@ -332,6 +336,11 @@ where
             add_agent_mounts = true;
             continue;
         }
+        if arg == "--add-dir-mount" || arg == "-m" {
+            let value = iter.next().ok_or(CliError::MissingMountPathValue)?;
+            add_dir_mounts.push(value);
+            continue;
+        }
         if arg.starts_with('-') {
             return Err(CliError::UnexpectedFlag(arg));
         }
@@ -342,6 +351,7 @@ where
         link_self,
         force,
         add_agent_mounts,
+        add_dir_mounts,
     })
 }
 
@@ -449,9 +459,10 @@ pub fn help_text() -> &'static str {
      \x20 completions     Print shell completion script to stdout\n\
      \n\
      install flags:\n\
-     \x20 --link-self        Link current ags executable to ~/.local/bin/ags\n\
-     \x20 --force            Replace existing ~/.local/bin/ags when used with --link-self\n\
-     \x20 --add-agent-mounts Append default [[agent_mount]] entries to ~/.config/ags/config.toml\n\
+     \x20 --link-self              Link current ags executable to ~/.local/bin/ags\n\
+     \x20 --force                  Replace existing ~/.local/bin/ags when used with --link-self\n\
+     \x20 --add-agent-mounts       Append default [[agent_mount]] entries to ~/.config/ags/config.toml\n\
+     \x20 --add-dir-mount, -m <path>  Append a same-path [[mount]] directory entry (repeatable)\n\
      \n\
      create-aliases flags:\n\
      \x20 --shell <name>    Target shell for alias blocks (fish|zsh|bash; autodetect if omitted)\n\

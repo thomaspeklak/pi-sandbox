@@ -10,6 +10,7 @@ use crate::cli::InstallOptions;
 pub enum InstallError {
     Io(io::Error),
     HomeDir,
+    InvalidMountDir(String),
 }
 
 impl fmt::Display for InstallError {
@@ -17,6 +18,7 @@ impl fmt::Display for InstallError {
         match self {
             Self::Io(e) => write!(f, "install I/O error: {e}"),
             Self::HomeDir => f.write_str("could not determine home directory"),
+            Self::InvalidMountDir(msg) => write!(f, "invalid directory mount: {msg}"),
         }
     }
 }
@@ -81,9 +83,12 @@ pub fn run(opts: &InstallOptions) -> Result<(), InstallError> {
     // Remove legacy config-dir symlink if it points elsewhere
     remove_legacy_symlink(&config_dir);
 
+    let config_path = config_dir.join("config.toml");
     if opts.add_agent_mounts {
-        let config_path = config_dir.join("config.toml");
         ensure_agent_mounts_block(&config_path)?;
+    }
+    if !opts.add_dir_mounts.is_empty() {
+        ensure_dir_mounts_block(&config_path, &opts.add_dir_mounts)?;
     }
 
     if opts.link_self {
@@ -171,6 +176,71 @@ container = "/home/dev/.gemini"
     println!("Appended default agent mounts to {}", config_path.display());
 
     Ok(())
+}
+
+fn ensure_dir_mounts_block(config_path: &Path, dirs: &[String]) -> Result<(), InstallError> {
+    if !config_path.exists() {
+        eprintln!(
+            "warning: {} does not exist; skipped --add-dir-mount",
+            config_path.display()
+        );
+        return Ok(());
+    }
+
+    let mut content = fs::read_to_string(config_path)?;
+    let mut appended = 0u32;
+
+    for raw_dir in dirs {
+        let host_dir = canonicalize_mount_dir(raw_dir)?;
+        let host = host_dir.display().to_string();
+        let needle = format!("host = \"{host}\"\ncontainer = \"{host}\"");
+        if content.contains(&needle) {
+            continue;
+        }
+
+        if !content.ends_with('\n') {
+            content.push('\n');
+        }
+        content.push_str(&format!(
+            "\n# Added by `ags install --add-dir-mount`\n[[mount]]\nhost = \"{host}\"\ncontainer = \"{host}\"\nmode = \"rw\"\nkind = \"dir\"\n"
+        ));
+        appended += 1;
+    }
+
+    if appended == 0 {
+        println!(
+            "Directory mounts already present in {}",
+            config_path.display()
+        );
+        return Ok(());
+    }
+
+    fs::write(config_path, content)?;
+    println!(
+        "Appended {appended} additional directory mount(s) to {}",
+        config_path.display()
+    );
+    Ok(())
+}
+
+fn canonicalize_mount_dir(raw_dir: &str) -> Result<PathBuf, InstallError> {
+    let path = if let Some(rest) = raw_dir.strip_prefix("~/") {
+        dirs::home_dir().ok_or(InstallError::HomeDir)?.join(rest)
+    } else if raw_dir == "~" {
+        dirs::home_dir().ok_or(InstallError::HomeDir)?
+    } else {
+        PathBuf::from(raw_dir)
+    };
+
+    let canonical = fs::canonicalize(&path)
+        .map_err(|e| InstallError::InvalidMountDir(format!("{raw_dir} ({})", e)))?;
+    if !canonical.is_dir() {
+        return Err(InstallError::InvalidMountDir(format!(
+            "{raw_dir} ({}) is not a directory",
+            canonical.display()
+        )));
+    }
+    Ok(canonical)
 }
 
 fn link_self_executable(link_path: &Path, force: bool) -> Result<(), InstallError> {
@@ -266,5 +336,58 @@ fn remove_legacy_symlink(path: &Path) {
     {
         let _ = fs::remove_file(path);
         println!("Removed legacy config symlink: {}", path.display());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{canonicalize_mount_dir, ensure_dir_mounts_block};
+    use std::fs;
+
+    #[test]
+    fn dir_mount_block_appends_same_path_mount() {
+        let tmp = tempfile::tempdir().unwrap();
+        let config_path = tmp.path().join("config.toml");
+        fs::write(&config_path, "[sandbox]\nimage = \"x\"\n").unwrap();
+
+        let extra_dir = tmp.path().join("extra");
+        fs::create_dir_all(&extra_dir).unwrap();
+
+        ensure_dir_mounts_block(&config_path, &[extra_dir.display().to_string()]).unwrap();
+
+        let updated = fs::read_to_string(&config_path).unwrap();
+        let dir = extra_dir.display().to_string();
+        assert!(updated.contains("[[mount]]"));
+        assert!(updated.contains(&format!("host = \"{dir}\"")));
+        assert!(updated.contains(&format!("container = \"{dir}\"")));
+        assert!(updated.contains("mode = \"rw\""));
+        assert!(updated.contains("kind = \"dir\""));
+    }
+
+    #[test]
+    fn dir_mount_block_skips_existing_mount() {
+        let tmp = tempfile::tempdir().unwrap();
+        let extra_dir = tmp.path().join("extra");
+        fs::create_dir_all(&extra_dir).unwrap();
+        let dir = extra_dir.display().to_string();
+        let config_path = tmp.path().join("config.toml");
+        fs::write(
+            &config_path,
+            format!(
+                "[[mount]]\nhost = \"{dir}\"\ncontainer = \"{dir}\"\nmode = \"rw\"\nkind = \"dir\"\n"
+            ),
+        )
+        .unwrap();
+
+        ensure_dir_mounts_block(&config_path, std::slice::from_ref(&dir)).unwrap();
+
+        let updated = fs::read_to_string(&config_path).unwrap();
+        assert_eq!(updated.matches("[[mount]]").count(), 1);
+    }
+
+    #[test]
+    fn canonicalize_mount_dir_rejects_missing_path() {
+        let err = canonicalize_mount_dir("/definitely/missing/ags-test-dir").unwrap_err();
+        assert!(err.to_string().contains("invalid directory mount"));
     }
 }
