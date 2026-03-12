@@ -11,3 +11,4 @@ pub mod plan;
 pub mod podman;
 pub mod secrets;
 pub mod ssh;
+pub mod update_check;

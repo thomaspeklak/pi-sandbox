@@ -7,9 +7,18 @@ use ags::secrets::{self, OsSecretBackend};
 use ags::ssh::{self, OsSshRunner, SshKey};
 
 fn main() -> ExitCode {
-    match cli::parse_args(std::env::args()) {
+    let update_check = ags::update_check::UpdateCheck::from_default_cache();
+
+    let code = match cli::parse_args(std::env::args()) {
         Ok(Command::Run(opts)) => run_agent(opts),
-        Ok(Command::Sub(sub)) => run_subcommand(sub),
+        Ok(Command::Sub(sub)) => {
+            let skip_notice = matches!(sub, SubCommand::Completions(_) | SubCommand::Update);
+            let code = run_subcommand(sub);
+            if skip_notice {
+                return code;
+            }
+            code
+        }
         Err(cli::CliError::HelpRequested) => {
             println!("{}", cli::help_text());
             ExitCode::SUCCESS
@@ -19,7 +28,10 @@ fn main() -> ExitCode {
             eprintln!("\n{}", cli::help_text());
             ExitCode::from(2)
         }
-    }
+    };
+
+    update_check.notify_if_available();
+    code
 }
 
 fn run_subcommand(sub: SubCommand) -> ExitCode {
