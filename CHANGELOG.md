@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.1] — 2026-03-12
+
+### Bug Fixes
+
+- fix(run): add runtime --add-dir flag (2f4f8f4)
+
 ## [v0.5.0] — 2026-03-12
 
 ### Features
