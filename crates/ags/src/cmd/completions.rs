@@ -60,7 +60,7 @@ const BASH: &str = r#"_ags_completion() {
   done
 
   if (( COMP_CWORD == 1 )); then
-    COMPREPLY=( $(compgen -W "$commands --agent --browser --tmux --config --add-dir -d -h --help" -- "$cur") )
+    COMPREPLY=( $(compgen -W "$commands --agent --browser --tmux --psp --config --add-dir -d -h --help" -- "$cur") )
     return 0
   fi
 
@@ -154,7 +154,7 @@ const BASH: &str = r#"_ags_completion() {
     return 0
   fi
 
-  COMPREPLY=( $(compgen -W "--agent --browser --tmux --config --add-dir -d -h --help" -- "$cur") )
+  COMPREPLY=( $(compgen -W "--agent --browser --tmux --psp --config --add-dir -d -h --help" -- "$cur") )
 }
 
 complete -F _ags_completion ags
@@ -171,7 +171,7 @@ modes=(wrappers aliases both)
 if (( CURRENT == 2 )); then
   _alternative \
     'subcommand:subcommand:(setup doctor update update-agents install uninstall create-aliases completions)' \
-    'run-flag:run flag:(--agent --browser --tmux --config --add-dir -d -h --help)'
+    'run-flag:run flag:(--agent --browser --tmux --psp --config --add-dir -d -h --help)'
   return
 fi
 
@@ -208,6 +208,7 @@ _arguments -S \
   '--agent[Agent to run]:agent:(pi claude codex gemini opencode shell)' \
   '--browser[Enable browser sidecar]' \
   '--tmux[Launch the agent inside a tmux session]' \
+  '--psp[Enable podman-socket-proxy mode]' \
   '--config[Override config file path]:config file:_files' \
   '(-d)--add-dir[Add an extra same-path directory mount for this run]:host directory:_files -/' \
   '(--add-dir)-d[Add an extra same-path directory mount for this run]:host directory:_files -/' \
@@ -234,6 +235,7 @@ complete -c ags -n "__fish_use_subcommand" -a completions -d "Print completion s
 complete -c ags -n "__fish_use_subcommand" -l agent -r -a "$__ags_agents" -d "Agent to run"
 complete -c ags -n "__fish_use_subcommand" -l browser -d "Enable browser sidecar"
 complete -c ags -n "__fish_use_subcommand" -l tmux -d "Launch the agent inside a tmux session"
+complete -c ags -n "__fish_use_subcommand" -l psp -d "Enable podman-socket-proxy mode"
 complete -c ags -n "__fish_use_subcommand" -l config -r -d "Override config file path"
 complete -c ags -n "__fish_use_subcommand" -l add-dir -s d -r -d "Add an extra same-path directory mount for this run"
 complete -c ags -n "__fish_use_subcommand" -s h -l help -d "Show help"

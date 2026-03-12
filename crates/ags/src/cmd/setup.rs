@@ -21,7 +21,7 @@ pub fn run(config: &ValidatedConfig) -> Result<(), SetupError> {
     ensure_pi_assets(config)?;
     ensure_claude_assets(config)?;
 
-    if !has_command("secret-tool") {
+    if !crate::util::has_command("secret-tool") {
         println!(
             "\nsecret-tool not found; skipping secret-store setup.\n\
              You can still provide secrets via environment variables at runtime."
@@ -212,12 +212,6 @@ fn store_secrets_interactive(config: &ValidatedConfig) -> Result<(), SetupError>
     Ok(())
 }
 
-fn has_command(name: &str) -> bool {
-    Command::new("which")
-        .arg(name)
-        .output()
-        .is_ok_and(|o| o.status.success())
-}
 
 fn pub_key_path(key_path: &Path) -> PathBuf {
     let mut p = key_path.as_os_str().to_owned();

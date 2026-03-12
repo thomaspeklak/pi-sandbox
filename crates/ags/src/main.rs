@@ -211,9 +211,7 @@ fn run_agent(opts: RunOptions) -> ExitCode {
     let _auth_proxy_guard;
     let auth_proxy_runtime_dir;
     {
-        let runtime_base = std::env::var("XDG_RUNTIME_DIR")
-            .map(std::path::PathBuf::from)
-            .unwrap_or_else(|_| std::env::temp_dir());
+        let runtime_base = ags::util::runtime_dir();
         let dir = runtime_base.join(format!("ags-auth-proxy-{}", std::process::id()));
 
         match ags::auth_proxy::start(&dir, config.auth_proxy.auto_allow_domains.clone()) {
@@ -231,6 +229,25 @@ fn run_agent(opts: RunOptions) -> ExitCode {
                 _auth_proxy_guard = None;
             }
         }
+    }
+
+    // 6c. PSP sidecar
+    let _psp_guard;
+    let psp_socket;
+    if opts.psp {
+        match ags::psp::start(&config.psp.binary) {
+            Ok(guard) => {
+                psp_socket = Some(guard.socket_path.clone());
+                _psp_guard = Some(guard);
+            }
+            Err(e) => {
+                eprintln!("error: {e}");
+                return ExitCode::FAILURE;
+            }
+        }
+    } else {
+        psp_socket = None;
+        _psp_guard = None;
     }
 
     // 7. Discover external git mounts
@@ -254,6 +271,7 @@ fn run_agent(opts: RunOptions) -> ExitCode {
             ssh_auth_sock: ssh_sock.as_deref(),
             resolved_secrets: &resolved_secrets,
             auth_proxy_runtime_dir: auth_proxy_runtime_dir.as_deref(),
+            psp_socket: psp_socket.as_deref(),
             extra_mount_dirs: &opts.add_dirs,
         },
     ) {

@@ -21,6 +21,8 @@ pub struct RawConfig {
     pub update: RawUpdate,
     #[serde(default)]
     pub auth_proxy: RawAuthProxy,
+    #[serde(default)]
+    pub psp: RawPsp,
 }
 
 #[derive(Debug, Deserialize)]
@@ -129,6 +131,12 @@ impl Default for RawUpdate {
 pub struct RawAuthProxy {
     #[serde(default)]
     pub auto_allow_domains: Vec<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+pub struct RawPsp {
+    #[serde(default)]
+    pub binary: String,
 }
 
 fn default_kind() -> String {
