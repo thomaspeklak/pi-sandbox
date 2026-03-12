@@ -89,10 +89,12 @@ fn build_install_script(pi_spec: &str, release_age: u32) -> String {
         r#"set -e && \
 mkdir -p "$HOME/.config/pnpm" && \
 printf 'minimum-release-age=%s\nignore-scripts=true\n' '{release_age}' > "$HOME/.config/pnpm/rc" && \
-pnpm self-update && \
-PNPM_HOME=/usr/local/pnpm PATH=/usr/local/pnpm:$PATH \
+(pnpm self-update || echo '[ags] pnpm self-update skipped (release too new?); using existing version' >&2) && \
+(PNPM_HOME=/usr/local/pnpm PATH=/usr/local/pnpm:$PATH \
   pnpm add -g --store-dir /usr/local/pnpm/.store \
-    {pi_spec} @openai/codex @google/gemini-cli opencode-ai && \
+    {pi_spec} @openai/codex @google/gemini-cli opencode-ai || \
+  (echo '[ags] pnpm add -g failed (release too new?); using existing installs' >&2 && \
+   PNPM_HOME=/usr/local/pnpm PATH=/usr/local/pnpm:$PATH command -v pi >/dev/null 2>&1)) && \
 CLAUDE_HOME=/opt/claude-home && \
 CLAUDE_BIN="$CLAUDE_HOME/.local/bin/claude" && \
 if [ -x "$CLAUDE_BIN" ]; then \
