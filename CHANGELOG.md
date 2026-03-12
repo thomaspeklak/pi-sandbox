@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.0] — 2026-03-12
+
+### Features
+
+- feat(install): add -m dir mount flag (05b2364)
+
+### Bug Fixes
+
+- fix(auth-proxy): support sockaddr_in on macos (99990cc)
+
+### Chores / Other
+
+- chore(beads): update issue state (366febb)
+- chore(git): ignore beads history exports (11a8a06)
+
 ## [v0.4.0] — 2026-03-12
 
 ### Features
