@@ -6,6 +6,7 @@ pub const CONTAINERFILE: &str = include_str!("../../../config/Containerfile");
 pub const TMUX_CONF: &str = include_str!("../../../config/tmux.conf");
 pub const GUARD_TS: &str = include_str!("../../../agent/extensions/guard.ts");
 pub const SETTINGS_EXAMPLE: &str = include_str!("../../../agent/settings.example.json");
+pub const AUTH_PROXY_SHIM: &str = include_str!("../../../agent/auth-proxy-shim");
 
 /// Write the embedded Containerfile to `path`, always overwriting.
 pub fn ensure_containerfile(path: &Path) -> io::Result<()> {
@@ -39,14 +40,29 @@ pub fn ensure_settings_template(pi_sandbox: &Path) -> io::Result<()> {
     }
     fs::create_dir_all(pi_sandbox)?;
     fs::write(&target, SETTINGS_EXAMPLE)?;
-    set_permissions_600(&target);
+    set_permissions(&target, 0o600);
     Ok(())
 }
 
-fn set_permissions_600(path: &Path) {
+/// Write the embedded auth proxy shim to `<dir>/auth-proxy-shim`, always overwriting.
+///
+/// The shim is made executable (mode 0755).
+pub fn ensure_auth_proxy_shim(dir: &Path) -> io::Result<()> {
+    fs::create_dir_all(dir)?;
+    let target = dir.join("auth-proxy-shim");
+    fs::write(&target, AUTH_PROXY_SHIM)?;
+    set_permissions(&target, 0o755);
+    Ok(())
+}
+
+fn set_permissions(path: &Path, mode: u32) {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let _ = fs::set_permissions(path, fs::Permissions::from_mode(0o600));
+        let _ = fs::set_permissions(path, fs::Permissions::from_mode(mode));
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (path, mode);
     }
 }
