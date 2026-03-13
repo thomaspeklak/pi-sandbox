@@ -13,6 +13,7 @@ pub struct ValidatedConfig {
     pub browser: BrowserConfig,
     pub update: UpdateConfig,
     pub auth_proxy: AuthProxyConfig,
+    pub psp: PspConfig,
 }
 
 #[derive(Debug, Clone)]
@@ -155,6 +156,12 @@ pub struct UpdateConfig {
 #[derive(Debug, Clone, Default)]
 pub struct AuthProxyConfig {
     pub auto_allow_domains: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct PspConfig {
+    /// Optional override path to the `psp` binary. If empty, uses PATH lookup.
+    pub binary: String,
 }
 
 impl Default for UpdateConfig {

@@ -95,9 +95,7 @@ pub fn execute(plan: &LaunchPlan, passthrough_args: &[String]) -> Result<u8, Pod
     ensure_image(&plan.image, &plan.containerfile)?;
 
     // Write env file
-    let env_dir = std::env::var("XDG_RUNTIME_DIR")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|_| std::env::temp_dir());
+    let env_dir = crate::util::runtime_dir();
 
     let env_file = write_env_file(&plan.env.env_file_entries, &env_dir)?;
 

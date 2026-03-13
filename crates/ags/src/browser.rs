@@ -4,7 +4,7 @@ use std::io;
 use std::net::TcpStream;
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use crate::config::BrowserConfig;
 
@@ -158,12 +158,12 @@ fn validate_command(command: &str) -> Result<(), BrowserError> {
     if command.contains('/') {
         // Absolute or relative path — check executability
         let path = Path::new(command);
-        if !path.exists() || !is_executable(path) {
+        if !path.exists() || !crate::util::is_executable(path) {
             return Err(BrowserError::CommandNotExecutable(command.to_owned()));
         }
     } else {
         // Bare command name — check PATH
-        if which(command).is_none() {
+        if crate::util::which(command).is_none() {
             return Err(BrowserError::CommandNotFound(command.to_owned()));
         }
     }
@@ -193,38 +193,17 @@ fn spawn_browser(config: &BrowserConfig) -> Result<Child, BrowserError> {
 
 /// Poll the debug port until the browser is ready or timeout.
 fn wait_for_ready(port: u16) -> Result<(), BrowserError> {
-    let start = Instant::now();
-    while start.elapsed() < READY_TIMEOUT {
+    use std::ops::ControlFlow;
+    crate::util::poll_until(READY_TIMEOUT, POLL_INTERVAL, || {
         if is_debug_port_open(port) {
-            return Ok(());
+            ControlFlow::Break(())
+        } else {
+            ControlFlow::Continue(())
         }
-        std::thread::sleep(POLL_INTERVAL);
-    }
-    Err(BrowserError::ReadyTimeout {
+    })
+    .ok_or(BrowserError::ReadyTimeout {
         port,
         timeout: READY_TIMEOUT,
     })
 }
 
-/// Check if a path is executable (unix).
-#[cfg(unix)]
-fn is_executable(path: &Path) -> bool {
-    use std::os::unix::fs::PermissionsExt;
-    path.metadata()
-        .map(|m| m.permissions().mode() & 0o111 != 0)
-        .unwrap_or(false)
-}
-
-#[cfg(not(unix))]
-fn is_executable(path: &Path) -> bool {
-    path.exists()
-}
-
-/// Simple PATH lookup for a command name.
-fn which(name: &str) -> Option<std::path::PathBuf> {
-    std::env::var_os("PATH").and_then(|paths| {
-        std::env::split_paths(&paths)
-            .map(|dir| dir.join(name))
-            .find(|candidate| candidate.is_file() && is_executable(candidate))
-    })
-}

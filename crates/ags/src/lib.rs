@@ -9,6 +9,8 @@ pub mod git;
 pub mod paths;
 pub mod plan;
 pub mod podman;
+pub mod psp;
 pub mod secrets;
+pub mod util;
 pub mod ssh;
 pub mod update_check;

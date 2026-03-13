@@ -78,6 +78,8 @@ fn build_plan_from_agent(toml: &str, workdir: &Path, agent: Agent) -> ags::plan:
             ssh_auth_sock: None,
             resolved_secrets: &secrets,
             auth_proxy_runtime_dir: None,
+            psp_socket: None,
+            psp_session_id: None,
             extra_mount_dirs: &[],
         },
     )
@@ -267,6 +269,8 @@ debug_port = 9222
             ssh_auth_sock: None,
             resolved_secrets: &secrets,
             auth_proxy_runtime_dir: None,
+            psp_socket: None,
+            psp_session_id: None,
             extra_mount_dirs: &[],
         },
     )
@@ -328,6 +332,8 @@ fn tmux_mode_wraps_agent_command() {
             ssh_auth_sock: None,
             resolved_secrets: &secrets,
             auth_proxy_runtime_dir: None,
+            psp_socket: None,
+            psp_session_id: None,
             extra_mount_dirs: &[],
         },
     )
@@ -400,6 +406,8 @@ mode = \"ro\"\n",
             ssh_auth_sock: None,
             resolved_secrets: &secrets,
             auth_proxy_runtime_dir: None,
+            psp_socket: None,
+            psp_session_id: None,
             extra_mount_dirs: &[],
         },
     );
@@ -493,6 +501,8 @@ fn secrets_in_env_file() {
             ssh_auth_sock: None,
             resolved_secrets: &secrets,
             auth_proxy_runtime_dir: None,
+            psp_socket: None,
+            psp_session_id: None,
             extra_mount_dirs: &[],
         },
     )
@@ -523,6 +533,8 @@ fn ssh_socket_mounted_when_provided() {
             ssh_auth_sock: Some(sock),
             resolved_secrets: &secrets,
             auth_proxy_runtime_dir: None,
+            psp_socket: None,
+            psp_session_id: None,
             extra_mount_dirs: &[],
         },
     )
@@ -550,6 +562,8 @@ fn runtime_add_dir_mounts_are_included() {
             ssh_auth_sock: None,
             resolved_secrets: &secrets,
             auth_proxy_runtime_dir: None,
+            psp_socket: None,
+            psp_session_id: None,
             extra_mount_dirs: &extra_dirs,
         },
     )
@@ -578,6 +592,8 @@ fn runtime_add_dir_missing_path_is_error() {
             ssh_auth_sock: None,
             resolved_secrets: &secrets,
             auth_proxy_runtime_dir: None,
+            psp_socket: None,
+            psp_session_id: None,
             extra_mount_dirs: &extra_dirs,
         },
     );
@@ -599,6 +615,8 @@ fn nonexistent_workdir_is_error() {
             ssh_auth_sock: None,
             resolved_secrets: &secrets,
             auth_proxy_runtime_dir: None,
+            psp_socket: None,
+            psp_session_id: None,
             extra_mount_dirs: &[],
         },
     );
@@ -632,6 +650,8 @@ pi_skill_path = "/home/dev/browser-tools"
             ssh_auth_sock: None,
             resolved_secrets: &secrets,
             auth_proxy_runtime_dir: None,
+            psp_socket: None,
+            psp_session_id: None,
             extra_mount_dirs: &[],
         },
     )
@@ -870,6 +890,120 @@ fn non_pi_agent_no_pi_env() {
     assert!(!has_pi_env, "codex should not have PI_CODING_AGENT_DIR");
 }
 
+// --- PSP integration ---
+
+#[test]
+fn psp_mode_injects_docker_host_env() {
+    let toml = minimal_config_toml();
+    let workdir = tempfile::tempdir().unwrap();
+    let psp_dir = tempfile::tempdir().unwrap();
+    let psp_sock = psp_dir.path().join("psp.sock");
+
+    let config = parse_toml_str(&toml, Path::new("/test/config.toml")).unwrap();
+    let secrets = HashMap::new();
+    let plan = build_launch_plan(
+        &config,
+        workdir.path(),
+        Agent::Pi,
+        BuildLaunchPlanOptions {
+            browser_mode: false,
+            tmux_mode: false,
+            ssh_auth_sock: None,
+            resolved_secrets: &secrets,
+            auth_proxy_runtime_dir: None,
+            psp_socket: Some(&psp_sock),
+            psp_session_id: Some("ags-pi-12345"),
+            extra_mount_dirs: &[],
+        },
+    )
+    .unwrap();
+
+    let find_env = |key: &str| -> Option<String> {
+        plan.env
+            .inline
+            .iter()
+            .find(|(k, _)| k == key)
+            .map(|(_, v)| v.clone())
+    };
+
+    assert_eq!(
+        find_env("DOCKER_HOST"),
+        Some("unix:///run/psp/psp.sock".to_owned()),
+        "DOCKER_HOST should point to container-side PSP socket"
+    );
+    assert_eq!(
+        find_env("PSP_SESSION_ID"),
+        Some("ags-pi-12345".to_owned()),
+        "PSP_SESSION_ID should be injected"
+    );
+    assert_eq!(
+        find_env("TESTCONTAINERS_HOST_OVERRIDE"),
+        Some("host.containers.internal".to_owned()),
+        "TESTCONTAINERS_HOST_OVERRIDE should route to host"
+    );
+}
+
+#[test]
+fn psp_mode_mounts_socket_dir() {
+    let toml = minimal_config_toml();
+    let workdir = tempfile::tempdir().unwrap();
+    let psp_dir = tempfile::tempdir().unwrap();
+    let psp_sock = psp_dir.path().join("psp.sock");
+
+    let config = parse_toml_str(&toml, Path::new("/test/config.toml")).unwrap();
+    let secrets = HashMap::new();
+    let plan = build_launch_plan(
+        &config,
+        workdir.path(),
+        Agent::Pi,
+        BuildLaunchPlanOptions {
+            browser_mode: false,
+            tmux_mode: false,
+            ssh_auth_sock: None,
+            resolved_secrets: &secrets,
+            auth_proxy_runtime_dir: None,
+            psp_socket: Some(&psp_sock),
+            psp_session_id: Some("ags-pi-12345"),
+            extra_mount_dirs: &[],
+        },
+    )
+    .unwrap();
+
+    let psp_mount = plan
+        .mounts
+        .iter()
+        .find(|m| m.container == "/run/psp");
+    assert!(psp_mount.is_some(), "PSP socket dir should be mounted");
+    assert_eq!(psp_mount.unwrap().mode, MountMode::Rw);
+}
+
+#[test]
+fn no_psp_env_when_disabled() {
+    let toml = minimal_config_toml();
+    let workdir = tempfile::tempdir().unwrap();
+    let plan = build_plan_from(&toml, workdir.path());
+
+    let find_env = |key: &str| -> Option<String> {
+        plan.env
+            .inline
+            .iter()
+            .find(|(k, _)| k == key)
+            .map(|(_, v)| v.clone())
+    };
+    assert!(
+        find_env("DOCKER_HOST").is_none(),
+        "DOCKER_HOST should not be set without PSP"
+    );
+    assert!(
+        find_env("PSP_SESSION_ID").is_none(),
+        "PSP_SESSION_ID should not be set without PSP"
+    );
+    assert!(
+        find_env("TESTCONTAINERS_HOST_OVERRIDE").is_none(),
+        "TESTCONTAINERS_HOST_OVERRIDE should not be set without PSP"
+    );
+}
+
 // --- Auth proxy integration ---
 
 #[test]
@@ -894,6 +1028,8 @@ fn auth_proxy_mounts_and_env_when_enabled() {
             ssh_auth_sock: None,
             resolved_secrets: &secrets,
             auth_proxy_runtime_dir: Some(auth_dir.path()),
+            psp_socket: None,
+            psp_session_id: None,
             extra_mount_dirs: &[],
         },
     )

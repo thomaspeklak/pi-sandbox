@@ -76,10 +76,7 @@ impl Checker {
 // ── System probes ────────────────────────────────────────────────────
 
 pub fn has_command(name: &str) -> bool {
-    Command::new("which")
-        .arg(name)
-        .output()
-        .is_ok_and(|o| o.status.success())
+    crate::util::has_command(name)
 }
 
 pub fn check_required_cmd(ck: &mut Checker, cmd: &str) {
@@ -187,16 +184,7 @@ pub fn secret_tool_has_value(attributes: &std::collections::BTreeMap<String, Str
 }
 
 pub fn is_executable(path: &Path) -> bool {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        path.metadata()
-            .is_ok_and(|m| m.permissions().mode() & 0o111 != 0)
-    }
-    #[cfg(not(unix))]
-    {
-        path.exists()
-    }
+    crate::util::is_executable(path)
 }
 
 pub fn is_port_open(port: u16) -> bool {

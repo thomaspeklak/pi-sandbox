@@ -27,6 +27,8 @@ pub struct BuildLaunchPlanOptions<'a> {
     pub ssh_auth_sock: Option<&'a Path>,
     pub resolved_secrets: &'a HashMap<String, String>,
     pub auth_proxy_runtime_dir: Option<&'a Path>,
+    pub psp_socket: Option<&'a Path>,
+    pub psp_session_id: Option<&'a str>,
     pub extra_mount_dirs: &'a [PathBuf],
 }
 
@@ -56,6 +58,8 @@ pub fn build_launch_plan(
         ssh_auth_sock,
         resolved_secrets,
         auth_proxy_runtime_dir,
+        psp_socket,
+        psp_session_id,
         extra_mount_dirs,
     } = options;
     let profile = agent::profile_for(agent, config);
@@ -150,6 +154,17 @@ pub fn build_launch_plan(
         });
     }
 
+    // PSP socket mount
+    if let Some(sock) = psp_socket {
+        if let Some(sock_dir) = sock.parent() {
+            mounts.push(PlanMount {
+                host: sock_dir.to_owned(),
+                container: crate::psp::PspGuard::container_socket_dir().to_owned(),
+                mode: MountMode::Rw,
+            });
+        }
+    }
+
     // Public key files
     add_pub_key_mount(&mut mounts, &config.sandbox.auth_key, "ags-agent-auth");
     add_pub_key_mount(&mut mounts, &config.sandbox.sign_key, "ags-agent-signing");
@@ -163,6 +178,8 @@ pub fn build_launch_plan(
         &write_roots,
         resolved_secrets,
         auth_proxy_runtime_dir.is_some(),
+        psp_socket.is_some(),
+        psp_session_id,
     );
 
     // Network mode
@@ -506,6 +523,8 @@ fn build_env(
     write_roots: &[String],
     resolved_secrets: &HashMap<String, String>,
     auth_proxy_enabled: bool,
+    psp_enabled: bool,
+    psp_session_id: Option<&str>,
 ) -> PlanEnv {
     let mut inline = vec![
         ("HOME".to_owned(), CONTAINER_HOME.to_owned()),
@@ -550,6 +569,23 @@ fn build_env(
             "BROWSER".to_owned(),
             format!("{CONTAINER_HOME}/.local/bin/auth-proxy-shim"),
         ));
+    }
+
+    if psp_enabled {
+        inline.push((
+            "DOCKER_HOST".to_owned(),
+            format!(
+                "unix://{}",
+                crate::psp::PspGuard::container_socket_path()
+            ),
+        ));
+        inline.push((
+            "TESTCONTAINERS_HOST_OVERRIDE".to_owned(),
+            HOST_SERVICES_HOST.to_owned(),
+        ));
+        if let Some(session_id) = psp_session_id {
+            inline.push(("PSP_SESSION_ID".to_owned(), session_id.to_owned()));
+        }
     }
 
     let passthrough_names = vec![
