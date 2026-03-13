@@ -153,15 +153,13 @@ case "$TOOL_NAME" in
     if command -v dcg &>/dev/null; then
       dcg_stdout=$(mktemp) || exit 0
       dcg_stderr=$(mktemp) || { rm -f "$dcg_stdout"; exit 0; }
+      trap 'rm -f "$dcg_stdout" "$dcg_stderr" 2>/dev/null' EXIT
 
       if printf '%s' "$INPUT" | dcg >"$dcg_stdout" 2>"$dcg_stderr"; then
         [[ -s "$dcg_stderr" ]] && cat "$dcg_stderr" >&2
         [[ -s "$dcg_stdout" ]] && cat "$dcg_stdout"
-        rm -f "$dcg_stdout" "$dcg_stderr"
         exit 0
       fi
-
-      rm -f "$dcg_stdout" "$dcg_stderr"
     fi
     ;;
 
