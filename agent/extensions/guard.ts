@@ -171,11 +171,6 @@ export default function (pi: ExtensionAPI) {
 
 		if (isToolCallEventType("bash", event)) {
 			const command = event.input.command;
-
-			if (SENSITIVE_PATH_PREFIXES.some((p) => command.includes(p))) {
-				return { block: true, reason: "Command references sensitive host path" };
-			}
-
 			const dcgReason = await maybeRunDcg(pi, command);
 			if (dcgReason) {
 				return { block: true, reason: dcgReason };

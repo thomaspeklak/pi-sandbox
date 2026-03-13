@@ -85,7 +85,7 @@ fn run_guard(input: &str, setup: impl FnOnce(&Path)) -> (String, String, i32, te
 }
 
 #[test]
-fn pi_guard_extension_delegates_bash_classification_to_dcg() {
+fn pi_guard_extension_uses_dcg_without_ags_bash_string_heuristics() {
     let content = fs::read_to_string(pi_guard_extension_path()).unwrap();
 
     assert!(
@@ -99,6 +99,14 @@ fn pi_guard_extension_delegates_bash_classification_to_dcg() {
     assert!(
         !content.contains("DANGEROUS_BASH_PATTERNS"),
         "Pi guard should not maintain a broad AGS Bash denylist"
+    );
+    assert!(
+        !content.contains("command.includes(p)"),
+        "Pi guard should not inspect raw Bash command strings for sensitive paths"
+    );
+    assert!(
+        !content.contains("Command references sensitive host path"),
+        "Pi guard should no longer block Bash purely on a substring path match"
     );
 }
 
