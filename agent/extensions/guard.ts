@@ -1,16 +1,6 @@
 import { isAbsolute, normalize, relative, resolve } from "node:path";
 import { isToolCallEventType, type ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
-const DANGEROUS_BASH_PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
-	{ pattern: /\brm\s+-[a-zA-Z]*r[a-zA-Z]*f\b.*\s\//, reason: "Refusing recursive force delete on absolute path" },
-	{ pattern: /\bgit\s+reset\s+--hard\b/i, reason: "Refusing git reset --hard" },
-	{ pattern: /\bgit\s+clean\b[^\n]*\b-f\b/i, reason: "Refusing git clean with force flag" },
-	{ pattern: /\bmkfs(\.[a-z0-9]+)?\b/i, reason: "Refusing filesystem formatting command" },
-	{ pattern: /\bdd\b[^\n]*\bof=\/dev\//i, reason: "Refusing dd writes to block devices" },
-	{ pattern: /\b(shutdown|reboot|poweroff|halt)\b/i, reason: "Refusing system power command" },
-	{ pattern: /:\(\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;\s*:/, reason: "Refusing fork bomb" },
-];
-
 const SENSITIVE_PATH_PREFIXES = [
 	"/home/dev/.ssh",
 	"/home/dev/.gnupg",
@@ -184,12 +174,6 @@ export default function (pi: ExtensionAPI) {
 
 			if (SENSITIVE_PATH_PREFIXES.some((p) => command.includes(p))) {
 				return { block: true, reason: "Command references sensitive host path" };
-			}
-
-			for (const { pattern, reason } of DANGEROUS_BASH_PATTERNS) {
-				if (pattern.test(command)) {
-					return { block: true, reason };
-				}
 			}
 
 			const dcgReason = await maybeRunDcg(pi, command);

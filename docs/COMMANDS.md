@@ -117,10 +117,11 @@ ags doctor
 
 ## `ags update`
 
-Rebuilds sandbox image from configured `Containerfile` and refreshes bundled Beads tools:
+Rebuilds sandbox image from configured `Containerfile` and refreshes bundled sandbox tools:
 
 - `br` from `beads_rust` releases
 - `bv` from `beads_viewer` releases
+- `dcg` from `destructive_command_guard` releases
 
 ```bash
 ags update
@@ -133,7 +134,7 @@ ags update
 Version check (inside sandbox):
 
 ```bash
-ags --agent shell -- -lc 'br --version && bv --version'
+ags --agent shell -- -lc 'br --version && bv --version && dcg --version'
 ```
 
 Use `ags update-agents` next if needed.

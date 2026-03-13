@@ -43,21 +43,22 @@ ags update-agents
 
 ---
 
-## `br` / `bv` missing inside container
+## `br` / `bv` / `dcg` missing inside container
 
-If Beads commands are missing or stale in sandbox.
+If bundled sandbox commands are missing or stale.
 
 ### Fix
 
 ```bash
 ags update
-ags --agent shell -- -lc 'br --version && bv --version'
+ags --agent shell -- -lc 'br --version && bv --version && dcg --version'
 ```
 
 `ags update` refreshes from upstream releases:
 
 - `beads_rust` (`br`): https://github.com/Dicklesworthstone/beads_rust/releases
 - `beads_viewer` (`bv`): https://github.com/Dicklesworthstone/beads_viewer/releases
+- `destructive_command_guard` (`dcg`): https://github.com/Dicklesworthstone/destructive_command_guard/releases
 
 ---
 

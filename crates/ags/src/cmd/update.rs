@@ -1,4 +1,5 @@
 use std::fmt;
+use std::path::Path;
 use std::process::Command;
 
 use serde::Deserialize;
@@ -7,6 +8,7 @@ use crate::config::ValidatedConfig;
 
 const BR_REPO: &str = "Dicklesworthstone/beads_rust";
 const BV_REPO: &str = "Dicklesworthstone/beads_viewer";
+const DCG_REPO: &str = "Dicklesworthstone/destructive_command_guard";
 
 /// Options for the update command.
 pub struct UpdateOptions {
@@ -33,7 +35,7 @@ impl fmt::Display for UpdateError {
             Self::MissingContainerfile(p) => write!(f, "missing Containerfile: {p}"),
             Self::ReleaseResolveFailed(msg) => write!(
                 f,
-                "failed to resolve latest beads releases: {msg} (check network/GitHub access)"
+                "failed to resolve latest bundled tool releases: {msg} (check network/GitHub access)"
             ),
             Self::ReleaseParseFailed(msg) => write!(f, "failed to parse release metadata: {msg}"),
             Self::BuildFailed(msg) => write!(f, "podman build failed: {msg}"),
@@ -43,7 +45,7 @@ impl fmt::Display for UpdateError {
 
 impl std::error::Error for UpdateError {}
 
-/// Rebuild the sandbox container image and refresh bundled br/bv release binaries.
+/// Rebuild the sandbox container image and refresh bundled br/bv/dcg release binaries.
 pub fn run(config: &ValidatedConfig, opts: &UpdateOptions) -> Result<(), UpdateError> {
     let image = &config.sandbox.image;
     let containerfile = &config.sandbox.containerfile;
@@ -56,32 +58,26 @@ pub fn run(config: &ValidatedConfig, opts: &UpdateOptions) -> Result<(), UpdateE
 
     let br_version = resolve_latest_tag(BR_REPO)?;
     let bv_version = resolve_latest_tag(BV_REPO)?;
+    let dcg_version = resolve_latest_tag(DCG_REPO)?;
 
     let context_dir = containerfile
         .parent()
         .expect("containerfile must have a parent directory");
 
-    let mut args: Vec<String> = vec![
-        "build".into(),
-        "-t".into(),
-        image.clone(),
-        "-f".into(),
-        containerfile.display().to_string(),
-        "--build-arg".into(),
-        format!("BR_VERSION={br_version}"),
-        "--build-arg".into(),
-        format!("BV_VERSION={bv_version}"),
-    ];
-
-    if opts.pull {
-        args.push("--pull".into());
-    }
-
-    args.push(context_dir.display().to_string());
+    let args = build_podman_build_args(
+        image,
+        containerfile,
+        context_dir,
+        &br_version,
+        &bv_version,
+        &dcg_version,
+        opts.pull,
+    );
 
     println!("Rebuilding {image}");
     println!("  br release: {br_version}");
     println!("  bv release: {bv_version}");
+    println!("  dcg release: {dcg_version}");
 
     let status = Command::new("podman")
         .args(&args)
@@ -92,10 +88,41 @@ pub fn run(config: &ValidatedConfig, opts: &UpdateOptions) -> Result<(), UpdateE
         return Err(UpdateError::BuildFailed(format!("exited with {status}")));
     }
 
-    println!("\nDone. Image rebuilt with br/bv refreshed.");
-    println!("Verify inside sandbox with: br --version && bv --version");
+    println!("\nDone. Image rebuilt with br/bv/dcg refreshed.");
+    println!("Verify inside sandbox with: br --version && bv --version && dcg --version");
     println!("Run 'ags update-agents' to install/update agent CLIs in volumes.");
     Ok(())
+}
+
+fn build_podman_build_args(
+    image: &str,
+    containerfile: &Path,
+    context_dir: &Path,
+    br_version: &str,
+    bv_version: &str,
+    dcg_version: &str,
+    pull: bool,
+) -> Vec<String> {
+    let mut args = vec![
+        "build".to_owned(),
+        "-t".to_owned(),
+        image.to_owned(),
+        "-f".to_owned(),
+        containerfile.display().to_string(),
+        "--build-arg".to_owned(),
+        format!("BR_VERSION={br_version}"),
+        "--build-arg".to_owned(),
+        format!("BV_VERSION={bv_version}"),
+        "--build-arg".to_owned(),
+        format!("DCG_VERSION={dcg_version}"),
+    ];
+
+    if pull {
+        args.push("--pull".to_owned());
+    }
+
+    args.push(context_dir.display().to_string());
+    args
 }
 
 #[derive(Debug, Deserialize)]
@@ -159,7 +186,9 @@ fn parse_latest_tag(body: &str) -> Result<String, UpdateError> {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_latest_tag;
+    use std::path::Path;
+
+    use super::{build_podman_build_args, parse_latest_tag};
 
     #[test]
     fn parse_latest_tag_extracts_tag_name() {
@@ -173,5 +202,24 @@ mod tests {
         let input = r#"{"tag_name":""}"#;
         let err = parse_latest_tag(input).expect_err("empty tag should fail");
         assert!(err.to_string().contains("missing tag_name"));
+    }
+
+    #[test]
+    fn build_args_include_dcg_version_and_pull_flag() {
+        let args = build_podman_build_args(
+            "localhost/agent-sandbox:latest",
+            Path::new("/tmp/Containerfile"),
+            Path::new("/tmp"),
+            "v1.0.0",
+            "v2.0.0",
+            "v3.0.0",
+            true,
+        );
+
+        assert!(args.contains(&"--pull".to_owned()));
+        assert!(args.contains(&"BR_VERSION=v1.0.0".to_owned()));
+        assert!(args.contains(&"BV_VERSION=v2.0.0".to_owned()));
+        assert!(args.contains(&"DCG_VERSION=v3.0.0".to_owned()));
+        assert_eq!(args.last().unwrap(), "/tmp");
     }
 }

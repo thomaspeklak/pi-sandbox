@@ -85,6 +85,25 @@ from_env = "EXAMPLE_GH_TOKEN"
 env = "EXAMPLE_GH_TOKEN"
 secret_store = { service = "example-gh-service", account = "example-account" }
 
+# Optional dcg user config/state mounts.
+# Project-local .dcg.toml is picked up automatically from the workspace mount.
+# Add these if you want sandbox dcg to use your host-managed global config,
+# allowlists, allow-once state, and history database.
+[[mount]]
+host = "$HOME/.config/dcg"
+container = "/home/dev/.config/dcg"
+mode = "rw"
+kind = "dir"
+optional = true
+
+[[mount]]
+host = "$HOME/.local/share/dcg"
+container = "/home/dev/.local/share/dcg"
+mode = "rw"
+kind = "dir"
+optional = true
+create = true
+
 # MCP auth token persistence (so MCP servers don't re-auth every session)
 [[mount]]
 host = "$HOME/.mcp-auth"

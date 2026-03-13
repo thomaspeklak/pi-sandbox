@@ -304,7 +304,7 @@ Tip: add `PGPASSWORD`, `PGUSER`, `PGDATABASE`, and `PGPORT` to `[sandbox].passth
 
 - `ags setup` — generate keys, ensure Pi assets in mounted host path, optional keyring secret setup
 - `ags doctor` — run environment + config health checks
-- `ags update` — rebuild container image from `Containerfile` and refresh bundled `br`/`bv` binaries
+- `ags update` — rebuild container image from `Containerfile` and refresh bundled `br`/`bv`/`dcg` binaries
 - `ags update-agents` — install/update agent CLIs in persistent volumes
 - `ags install [--link-self] [--force] [--add-agent-mounts]` — install assets/config layout, optional self-link, optional config mount block append
 - `ags uninstall` — currently reserved/no-op cleanup

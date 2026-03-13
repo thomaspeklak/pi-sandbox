@@ -160,6 +160,47 @@ If host path is missing:
 - else if `optional=true` → mount is skipped
 - else → run fails (`required mount source missing`)
 
+### Recommended optional mounts for dcg
+
+If you want sandboxed `dcg` to use host-managed global config and persist its own user-level state, add mounts like:
+
+```toml
+[[mount]]
+host = "$HOME/.config/dcg"
+container = "/home/dev/.config/dcg"
+mode = "rw"
+kind = "dir"
+optional = true
+
+[[mount]]
+host = "$HOME/.local/share/dcg"
+container = "/home/dev/.local/share/dcg"
+mode = "rw"
+kind = "dir"
+optional = true
+create = true
+```
+
+Notes:
+
+- project-local `.dcg.toml` is picked up automatically from the workspace mount
+- `~/.config/dcg` covers global config, allowlists, and allow-once state
+- `~/.local/share/dcg` covers dcg history storage
+- if you do not mount these, sandbox dcg still works with built-in defaults plus project-local config
+
+Recommended host-side `dcg` starting point:
+
+```toml
+# ~/.config/dcg/config.toml
+[packs]
+enabled = [
+  "database.postgresql",
+  "containers.docker",
+]
+```
+
+This keeps dcg core protections on (implicit) and adds common AGS-adjacent packs without inventing AGS-specific policy syntax.
+
 ---
 
 ## `[[tool]]`

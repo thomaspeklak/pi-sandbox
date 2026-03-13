@@ -69,6 +69,7 @@ RUN mkdir -p /usr/local/rustup /usr/local/cargo && \
 
 ARG BR_VERSION=latest
 ARG BV_VERSION=latest
+ARG DCG_VERSION=latest
 RUN set -eu && \
     arch="$(uname -m)" && \
     case "$arch" in \
@@ -112,6 +113,31 @@ RUN set -eu && \
     rm -f /tmp/br /tmp/bv /tmp/br-release.json /tmp/bv-release.json /tmp/bv-checksums.txt /tmp/bv.sha256 \
           /tmp/br-*.tar.gz /tmp/br-*.tar.gz.sha256 /tmp/bv_*.tar.gz && \
     br --version && bv --version
+
+RUN set -eu && \
+    arch="$(uname -m)" && \
+    case "$arch" in \
+      x86_64) dcg_target="x86_64-unknown-linux-gnu" ;; \
+      aarch64|arm64) dcg_target="aarch64-unknown-linux-gnu" ;; \
+      *) echo "unsupported architecture for dcg binary: $arch" >&2; exit 1 ;; \
+    esac && \
+    dcg_tag="$DCG_VERSION" && \
+    if [ "$dcg_tag" = "latest" ]; then \
+      curl -fsSL -H 'Accept: application/vnd.github+json' -H 'User-Agent: ags' \
+        https://api.github.com/repos/Dicklesworthstone/destructive_command_guard/releases/latest \
+        -o /tmp/dcg-release.json && \
+      dcg_tag="$(jq -r '.tag_name' /tmp/dcg-release.json)"; \
+    fi && \
+    [ -n "$dcg_tag" ] && [ "$dcg_tag" != "null" ] && \
+    dcg_asset="dcg-${dcg_target}.tar.xz" && \
+    dcg_base_url="https://github.com/Dicklesworthstone/destructive_command_guard/releases/download/${dcg_tag}" && \
+    curl -fsSL "${dcg_base_url}/${dcg_asset}" -o "/tmp/${dcg_asset}" && \
+    curl -fsSL "${dcg_base_url}/${dcg_asset}.sha256" -o "/tmp/${dcg_asset}.sha256" && \
+    (cd /tmp && sha256sum -c "${dcg_asset}.sha256") && \
+    tar -xJf "/tmp/${dcg_asset}" -C /tmp dcg && \
+    install -m 0755 /tmp/dcg /usr/local/bin/dcg && \
+    rm -f /tmp/dcg /tmp/dcg-release.json /tmp/dcg-*.tar.xz /tmp/dcg-*.tar.xz.sha256 && \
+    dcg --version
 
 USER dev
 WORKDIR /workspace

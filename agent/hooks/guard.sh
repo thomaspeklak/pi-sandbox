@@ -6,15 +6,18 @@
 #   - Access sensitive paths (SSH keys, credentials, etc.)
 #   - Read/write outside allowed sandbox roots
 #   - Write to secret-like files (.env, .pem, .key, id_*)
-#   - Execute dangerous bash commands (rm -rf /, git reset --hard, etc.)
+#   - Reference sensitive host paths from Bash commands
+#
+# For Bash command classification, this hook intentionally delegates to
+# destructive_command_guard (dcg) when available instead of maintaining a
+# separate AGS regex denylist.
 #
 # Exit codes:
-#   0 — allow the tool call
+#   0 — allow the tool call (or pass through dcg's allow/deny JSON)
 #   2 — block the tool call (reason printed to stderr)
 #
-# Non-zero non-2 exits are treated as non-blocking errors by Claude Code
-# (fail-open), which is acceptable since the container is the primary
-# security boundary.
+# If dcg is unavailable or errors, this wrapper fails open and relies on the
+# sandbox plus the AGS-specific path protections above.
 
 set -euo pipefail
 
@@ -134,32 +137,28 @@ case "$TOOL_NAME" in
   Bash)
     cmd=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty')
 
-    # Sensitive path references
+    # Sensitive path references remain AGS-specific because they reflect
+    # sandbox boundary concerns rather than general destructive intent.
     for sp in "${SENSITIVE_PATHS[@]}"; do
       [[ "$cmd" == *"$sp"* ]] \
         && deny "Command references sensitive host path"
     done
 
-    # Dangerous patterns (order mirrors guard.ts)
-    printf '%s' "$cmd" | grep -qE  '\brm\s+-[a-zA-Z]*r[a-zA-Z]*f\b.*\s\/'   && deny "Refusing recursive force delete on absolute path"
-    printf '%s' "$cmd" | grep -qEi '\bgit\s+reset\s+--hard\b'                 && deny "Refusing git reset --hard"
-    printf '%s' "$cmd" | grep -qEi '\bgit\s+clean\b[^\n]*\b-f\b'             && deny "Refusing git clean with force flag"
-    printf '%s' "$cmd" | grep -qEi '\bmkfs(\.[a-z0-9]+)?\b'                   && deny "Refusing filesystem formatting command"
-    printf '%s' "$cmd" | grep -qEi '\bdd\b[^\n]*\bof=\/dev\/'                 && deny "Refusing dd writes to block devices"
-    printf '%s' "$cmd" | grep -qEi '\b(shutdown|reboot|poweroff|halt)\b'       && deny "Refusing system power command"
-    printf '%s' "$cmd" | grep -qE  ':\(\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;\s*:' && deny "Refusing fork bomb"
-
-    # dcg integration (fail-open: only block on exit 1)
+    # Delegate shell command classification to dcg using the original hook
+    # payload so Claude-compatible hook output can pass through unchanged.
+    # If dcg is missing or errors, fail open.
     if command -v dcg &>/dev/null; then
-      dcg_exit=0
-      dcg_out=$(dcg test --format json "$cmd" 2>/dev/null) || dcg_exit=$?
-      if [[ "$dcg_exit" -eq 1 ]]; then
-        reason=$(printf '%s' "$dcg_out" \
-          | jq -r '.reason // .explanation // .rule_id // empty' 2>/dev/null) \
-          || reason=""
-        [[ -z "$reason" ]] && reason="Blocked by destructive_command_guard"
-        deny "$reason"
+      dcg_stdout=$(mktemp) || exit 0
+      dcg_stderr=$(mktemp) || { rm -f "$dcg_stdout"; exit 0; }
+
+      if printf '%s' "$INPUT" | dcg >"$dcg_stdout" 2>"$dcg_stderr"; then
+        [[ -s "$dcg_stderr" ]] && cat "$dcg_stderr" >&2
+        [[ -s "$dcg_stdout" ]] && cat "$dcg_stdout"
+        rm -f "$dcg_stdout" "$dcg_stderr"
+        exit 0
       fi
+
+      rm -f "$dcg_stdout" "$dcg_stderr"
     fi
     ;;
 
