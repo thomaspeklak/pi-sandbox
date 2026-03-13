@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.6.0] — 2026-03-13
+
+### Features
+
+- feat(psp): integrate podman-socket-proxy mode (bc2df72)
+
+### Bug Fixes
+
+- fix(pi): allow extensions by default (382ea01)
+
+### Chores / Other
+
+- chore: fix formatting and clippy issues (b1b3f7c)
+
 ## [v0.5.1] — 2026-03-12
 
 ### Bug Fixes
