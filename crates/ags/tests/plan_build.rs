@@ -936,6 +936,11 @@ fn psp_mode_injects_docker_host_env() {
         Some("ags-pi-12345".to_owned()),
         "PSP_SESSION_ID should be injected"
     );
+    assert_eq!(
+        find_env("TESTCONTAINERS_HOST_OVERRIDE"),
+        Some("host.containers.internal".to_owned()),
+        "TESTCONTAINERS_HOST_OVERRIDE should route to host"
+    );
 }
 
 #[test]
@@ -992,6 +997,10 @@ fn no_psp_env_when_disabled() {
     assert!(
         find_env("PSP_SESSION_ID").is_none(),
         "PSP_SESSION_ID should not be set without PSP"
+    );
+    assert!(
+        find_env("TESTCONTAINERS_HOST_OVERRIDE").is_none(),
+        "TESTCONTAINERS_HOST_OVERRIDE should not be set without PSP"
     );
 }
 

@@ -579,6 +579,10 @@ fn build_env(
                 crate::psp::PspGuard::container_socket_path()
             ),
         ));
+        inline.push((
+            "TESTCONTAINERS_HOST_OVERRIDE".to_owned(),
+            HOST_SERVICES_HOST.to_owned(),
+        ));
         if let Some(session_id) = psp_session_id {
             inline.push(("PSP_SESSION_ID".to_owned(), session_id.to_owned()));
         }

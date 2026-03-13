@@ -48,6 +48,7 @@ Enabling PSP is **only** via `--psp` flag, not config. This is intentional — P
 |----------|--------|-------|---------|
 | `DOCKER_HOST` | AGS | Container | Points Docker/Testcontainers to PSP socket |
 | `PSP_SESSION_ID` | AGS | Container | Stable session identifier (`ags-{agent}-{pid}`) for `x-psp-session-id` header |
+| `TESTCONTAINERS_HOST_OVERRIDE` | AGS | Container | Routes Testcontainers connections to `host.containers.internal` |
 | `PSP_LISTEN_SOCKET` | AGS | PSP process | Tells PSP where to create its socket |
 | `PSP_KEEP_ON_FAILURE` | AGS (via `--psp-keep`) | PSP process | Retains containers for debugging |
 
