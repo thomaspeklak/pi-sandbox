@@ -290,7 +290,12 @@ fn boot_dirs_in_entrypoint() {
         plan.entrypoint
     );
     assert!(plan.entrypoint.contains("/home/dev/.ssh"));
-    assert!(plan.entrypoint.contains("exec pi --no-extensions"));
+    assert!(plan.entrypoint.contains("exec pi -e"));
+    assert!(
+        !plan.entrypoint.contains("--no-extensions"),
+        "pi should not disable extensions: {}",
+        plan.entrypoint
+    );
 }
 
 #[test]
@@ -343,7 +348,12 @@ fn tmux_mode_wraps_agent_command() {
     assert!(plan.entrypoint.contains("Run `ags update`"));
     assert!(plan.entrypoint.contains("/tmp/ags-run-in-tmux.sh"));
     assert!(plan.entrypoint.contains("exec tmux new-session -A -s ags"));
-    assert!(plan.entrypoint.contains("exec pi --no-extensions"));
+    assert!(plan.entrypoint.contains("exec pi -e"));
+    assert!(
+        !plan.entrypoint.contains("--no-extensions"),
+        "pi should not disable extensions in tmux mode: {}",
+        plan.entrypoint
+    );
 }
 
 #[test]

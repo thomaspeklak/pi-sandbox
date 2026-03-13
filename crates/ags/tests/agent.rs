@@ -63,7 +63,6 @@ fn pi_profile_has_guard_args() {
     assert_eq!(
         profile.command_args,
         vec![
-            "--no-extensions",
             "-e",
             "/home/dev/.pi/agent/extensions/guard.ts",
             "--append-system-prompt",

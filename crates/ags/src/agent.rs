@@ -35,7 +35,6 @@ fn pi_profile(config: &ValidatedConfig) -> AgentProfile {
     AgentProfile {
         command: "pi".to_owned(),
         command_args: vec![
-            "--no-extensions".to_owned(),
             "-e".to_owned(),
             "/home/dev/.pi/agent/extensions/guard.ts".to_owned(),
             "--append-system-prompt".to_owned(),
