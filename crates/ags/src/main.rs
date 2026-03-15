@@ -338,10 +338,29 @@ fn load_config(override_path: Option<&Path>) -> Result<ValidatedConfig, ExitCode
         eprintln!("Created default config: {}", config_path.display());
     }
 
-    config::parse_and_validate(&config_path).map_err(|e| {
-        eprintln!("error: {e}");
-        ExitCode::from(2)
-    })
+    let repo_local_config = std::env::current_dir()
+        .ok()
+        .and_then(|cwd| ags::git::repo_root(&cwd))
+        .map(|root| root.join(".ags/config.toml"))
+        .filter(|path| path.exists())
+        .filter(|path| !same_existing_path(path, &config_path));
+
+    config::parse_and_validate_with_overlay(&config_path, repo_local_config.as_deref()).map_err(
+        |e| {
+            eprintln!("error: {e}");
+            ExitCode::from(2)
+        },
+    )
+}
+
+fn same_existing_path(a: &Path, b: &Path) -> bool {
+    let Ok(a) = a.canonicalize() else {
+        return false;
+    };
+    let Ok(b) = b.canonicalize() else {
+        return false;
+    };
+    a == b
 }
 
 fn create_default_config(path: &Path) -> std::io::Result<()> {

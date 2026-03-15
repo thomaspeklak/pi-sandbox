@@ -1,4 +1,7 @@
+use std::fs;
 use std::path::{Path, PathBuf};
+
+use toml::Value;
 
 use crate::config::error::ConfigError;
 use crate::config::raw::{RawAgentMount, RawBrowser, RawConfig, RawMount, RawSecret, RawTool};
@@ -10,20 +13,96 @@ use crate::config::types::{
 
 /// Read, parse, and validate a config TOML file from disk.
 pub fn parse_and_validate(path: &Path) -> Result<ValidatedConfig, ConfigError> {
-    let content = std::fs::read_to_string(path).map_err(|e| ConfigError::Io {
+    let content = fs::read_to_string(path).map_err(|e| ConfigError::Io {
         path: path.to_owned(),
         source: e,
     })?;
     parse_toml_str(&content, path)
 }
 
+/// Read, merge, and validate a base config plus an optional overlay config.
+///
+/// Scalar and table fields from the overlay take precedence. Repeatable top-level
+/// tables (`[[mount]]`, `[[agent_mount]]`, `[[tool]]`, `[[secret]]`) are additive
+/// so repository-local config can extend the base config instead of replacing it.
+pub fn parse_and_validate_with_overlay(
+    base_path: &Path,
+    overlay_path: Option<&Path>,
+) -> Result<ValidatedConfig, ConfigError> {
+    let mut merged = read_toml_value(base_path)?;
+
+    if let Some(overlay_path) = overlay_path {
+        let overlay = read_toml_value(overlay_path)?;
+        merge_toml_value(&mut merged, overlay, &[]);
+    }
+
+    parse_toml_value(merged, base_path)
+}
+
 /// Parse and validate config from a TOML string (useful for testing).
 pub fn parse_toml_str(content: &str, config_path: &Path) -> Result<ValidatedConfig, ConfigError> {
-    let raw: RawConfig = toml::from_str(content).map_err(|e| ConfigError::Toml {
+    let value = toml::from_str(content).map_err(|e| ConfigError::Toml {
+        path: config_path.to_owned(),
+        source: e,
+    })?;
+    parse_toml_value(value, config_path)
+}
+
+fn read_toml_value(path: &Path) -> Result<Value, ConfigError> {
+    let content = fs::read_to_string(path).map_err(|e| ConfigError::Io {
+        path: path.to_owned(),
+        source: e,
+    })?;
+    toml::from_str(&content).map_err(|e| ConfigError::Toml {
+        path: path.to_owned(),
+        source: e,
+    })
+}
+
+fn parse_toml_value(value: Value, config_path: &Path) -> Result<ValidatedConfig, ConfigError> {
+    let raw: RawConfig = value.try_into().map_err(|e| ConfigError::Toml {
         path: config_path.to_owned(),
         source: e,
     })?;
     validate(raw, config_path)
+}
+
+fn merge_toml_value(base: &mut Value, overlay: Value, path: &[&str]) {
+    match (base, overlay) {
+        (Value::Table(base_table), Value::Table(overlay_table)) => {
+            for (key, overlay_value) in overlay_table {
+                if is_additive_array_key(path, &key) {
+                    match (base_table.get_mut(&key), overlay_value) {
+                        (Some(Value::Array(base_array)), Value::Array(mut overlay_array)) => {
+                            base_array.append(&mut overlay_array);
+                        }
+                        (_, overlay_value) => {
+                            base_table.insert(key, overlay_value);
+                        }
+                    }
+                    continue;
+                }
+
+                match base_table.get_mut(&key) {
+                    Some(base_value) => {
+                        let mut child_path = path.to_vec();
+                        child_path.push(key.as_str());
+                        merge_toml_value(base_value, overlay_value, &child_path);
+                    }
+                    None => {
+                        base_table.insert(key, overlay_value);
+                    }
+                }
+            }
+        }
+        (base_slot, overlay_value) => {
+            *base_slot = overlay_value;
+        }
+    }
+}
+
+fn is_additive_array_key(path: &[&str], key: &str) -> bool {
+    path.is_empty() && matches!(key, "mount" | "agent_mount" | "tool" | "secret")
 }
 
 fn validate(raw: RawConfig, config_path: &Path) -> Result<ValidatedConfig, ConfigError> {

@@ -1,4 +1,4 @@
-# Configuration Reference (`~/.config/ags/config.toml`)
+# Configuration Reference (`~/.config/ags/config.toml` + optional `PROJECT_ROOT/.ags/config.toml`)
 
 This document explains the `ags` config schema, field by field.
 
@@ -8,17 +8,41 @@ Use `config/config.example.toml` as your starting template.
 
 ## Where config lives
 
-Default path:
+Base config path:
 
 - `~/.config/ags/config.toml`
 
-You can override at runtime:
+Optional repo-local overlay path:
+
+- `PROJECT_ROOT/.ags/config.toml`
+
+You can override the base config at runtime:
 
 ```bash
 ags --agent pi --config /path/to/config.toml
 ```
 
-If the default config path does not exist, `ags` creates a minimal default file on first run.
+If the base config path does not exist, `ags` creates a minimal default file on first run.
+
+### Precedence and merge behavior
+
+When AGS is launched inside a git repo, it resolves `PROJECT_ROOT` from the active repository/worktree root (`git rev-parse --show-toplevel`) and then loads config in this order:
+
+1. base config (`~/.config/ags/config.toml`, or `--config <path>` if provided)
+2. repo-local overlay (`PROJECT_ROOT/.ags/config.toml`) if present
+
+Merge rules:
+
+- scalar fields: repo-local value overrides base value
+- table/object fields: merged recursively; repo-local keys win
+- repeatable top-level sections are additive:
+  - `[[mount]]`
+  - `[[agent_mount]]`
+  - `[[tool]]`
+  - `[[secret]]`
+- other arrays are replaced by the repo-local value
+
+This lets a project add mounts/tools/secrets locally without copying your full personal config.
 
 ---
 

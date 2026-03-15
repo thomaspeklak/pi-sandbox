@@ -117,6 +117,56 @@ pub fn discover_external_git_mounts(workdir: &Path) -> ExternalGitMounts {
     }
 }
 
+/// Return the active repository root for `workdir`.
+///
+/// For linked worktrees, this is the checked-out worktree root rather than the
+/// shared common `.git` directory in the main repository.
+pub fn repo_root(workdir: &Path) -> Option<PathBuf> {
+    if !is_inside_work_tree(workdir) {
+        return None;
+    }
+
+    let output = Command::new("git")
+        .args([
+            "-C",
+            &workdir.to_string_lossy(),
+            "rev-parse",
+            "--path-format=absolute",
+            "--show-toplevel",
+        ])
+        .output()
+        .ok()?;
+
+    if output.status.success()
+        && let Some(p) = parse_trimmed_path(&output.stdout)
+        && p.is_absolute()
+    {
+        return Some(p);
+    }
+
+    let output = Command::new("git")
+        .args([
+            "-C",
+            &workdir.to_string_lossy(),
+            "rev-parse",
+            "--show-toplevel",
+        ])
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let raw = parse_trimmed_path(&output.stdout)?;
+    if raw.is_absolute() {
+        return Some(raw);
+    }
+
+    let resolved = workdir.join(&raw);
+    resolved.canonicalize().ok().or(Some(resolved))
+}
+
 /// If `workdir` is a linked git worktree, return the parent repository root.
 ///
 /// For linked worktrees, `git rev-parse --git-common-dir` points to

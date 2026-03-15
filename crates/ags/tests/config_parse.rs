@@ -1,6 +1,10 @@
 use std::path::Path;
 
-use ags::config::{MountKind, MountMode, MountWhen, SecretSource, ValidatedConfig, parse_toml_str};
+use ags::config::{
+    MountKind, MountMode, MountWhen, SecretSource, ValidatedConfig,
+    parse_and_validate_with_overlay, parse_toml_str,
+};
+use tempfile::tempdir;
 
 fn minimal_sandbox_toml() -> &'static str {
     r#"
@@ -476,6 +480,103 @@ passthrough_env = ["API_KEY", "OTHER_KEY"]
 fn config_file_path_stored() {
     let cfg = parse_minimal("");
     assert_eq!(cfg.config_file, Path::new("/test/config.toml"));
+}
+
+#[test]
+fn overlay_config_overrides_tables_and_appends_repeatable_sections() {
+    let dir = tempdir().unwrap();
+    let base_path = dir.path().join("base.toml");
+    let overlay_path = dir.path().join("overlay.toml");
+
+    std::fs::write(
+        &base_path,
+        r#"
+[sandbox]
+image = "base:latest"
+containerfile = "/tmp/Containerfile"
+cache_dir = "/tmp/cache"
+gitconfig_path = "/tmp/gitconfig"
+auth_key = "/tmp/auth"
+sign_key = "/tmp/sign"
+passthrough_env = ["BASE_TOKEN"]
+
+[[mount]]
+host = "/base"
+container = "/mnt/base"
+mode = "ro"
+
+[update]
+pi_spec = "@base/pi"
+minimum_release_age = 1440
+
+[auth_proxy]
+auto_allow_domains = ["base.example"]
+"#,
+    )
+    .unwrap();
+
+    std::fs::write(
+        &overlay_path,
+        r#"
+[sandbox]
+image = "repo:latest"
+passthrough_env = ["REPO_TOKEN"]
+
+[[mount]]
+host = "/repo"
+container = "/mnt/repo"
+mode = "rw"
+
+[update]
+pi_spec = "@repo/pi"
+
+[auth_proxy]
+auto_allow_domains = ["repo.example"]
+"#,
+    )
+    .unwrap();
+
+    let cfg = parse_and_validate_with_overlay(&base_path, Some(&overlay_path)).unwrap();
+
+    assert_eq!(cfg.sandbox.image, "repo:latest");
+    assert_eq!(cfg.sandbox.passthrough_env, vec!["REPO_TOKEN"]);
+    assert_eq!(cfg.update.pi_spec, "@repo/pi");
+    assert_eq!(cfg.update.minimum_release_age, 1440);
+    assert_eq!(cfg.auth_proxy.auto_allow_domains, vec!["repo.example"]);
+    assert_eq!(cfg.mounts.len(), 2);
+    assert_eq!(cfg.mounts[0].host, Path::new("/base"));
+    assert_eq!(cfg.mounts[1].host, Path::new("/repo"));
+    assert_eq!(cfg.mounts[1].mode, MountMode::Rw);
+}
+
+#[test]
+fn overlay_config_reports_overlay_toml_errors() {
+    let dir = tempdir().unwrap();
+    let base_path = dir.path().join("base.toml");
+    let overlay_path = dir.path().join("overlay.toml");
+
+    std::fs::write(
+        &base_path,
+        r#"
+[sandbox]
+image = "base:latest"
+containerfile = "/tmp/Containerfile"
+cache_dir = "/tmp/cache"
+gitconfig_path = "/tmp/gitconfig"
+auth_key = "/tmp/auth"
+sign_key = "/tmp/sign"
+"#,
+    )
+    .unwrap();
+    std::fs::write(&overlay_path, "not valid [[ toml").unwrap();
+
+    let err = parse_and_validate_with_overlay(&base_path, Some(&overlay_path))
+        .unwrap_err()
+        .to_string();
+    assert!(
+        err.contains(overlay_path.to_string_lossy().as_ref()),
+        "got: {err}"
+    );
 }
 
 #[test]

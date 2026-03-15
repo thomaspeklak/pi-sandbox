@@ -117,6 +117,14 @@ cp config/config.example.toml ~/.config/ags/config.toml
 
 Then replace placeholders with real values and paths.
 
+Optional per-repo overrides can live at:
+
+```text
+PROJECT_ROOT/.ags/config.toml
+```
+
+When present, AGS loads your user/global config first, then applies the repo-local overlay. Repo-local scalar/table fields win, while repeatable sections like `[[mount]]` are appended so projects can add mounts without replacing your base config.
+
 ### 3) Run setup
 
 ```bash
@@ -354,11 +362,22 @@ ags completions --shell fish > ~/.config/fish/completions/ags.fish
 
 ## Configuration guide
 
-Default config path:
+Default base config path:
 
 - `~/.config/ags/config.toml`
 
-If missing, `ags` auto-creates a minimal default config on first run.
+Optional repo-local overlay path:
+
+- `PROJECT_ROOT/.ags/config.toml`
+
+If the base config is missing, `ags` auto-creates a minimal default file on first run.
+
+Precedence order:
+
+1. user/global config (`~/.config/ags/config.toml`, or `--config <path>` if provided)
+2. repo-local overlay (`PROJECT_ROOT/.ags/config.toml`) when running inside a git repo/worktree
+
+Repo-local scalar/table fields override the base config. Repeatable sections (`[[mount]]`, `[[agent_mount]]`, `[[tool]]`, `[[secret]]`) are additive.
 
 Use `config/config.example.toml` for full schema examples.
 
