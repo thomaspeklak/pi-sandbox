@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.7.0] — 2026-03-15
+
+### Features
+
+- feat(ags): support repo-local config overlays (c386ba9)
+- feat: add guard yolo mode and dcg visibility (e96cb77)
+- feat: integrate dcg into sandbox guards (10f1c7b)
+
+### Bug Fixes
+
+- fix: use EXIT trap for dcg temp file cleanup in guard hook (66b05f9)
+
+### Chores / Other
+
+- style: run cargo fmt (5151603)
+- chore(beads): close agent-sandbox-l39 (49aa0f8)
+- chore(git): stop tracking beads history exports (3597233)
+- refactor: remove pi bash path heuristics (a6926f4)
+
 ## [v0.6.0] — 2026-03-13
 
 ### Features
