@@ -113,6 +113,21 @@ fn final_image_recreates_and_executes_the_pnpm_launcher() {
 }
 
 #[test]
+fn final_image_precreates_xdg_data_home_before_chown() {
+    let containerfile = include_str!("../../../config/Containerfile");
+    let user_setup = containerfile
+        .split_once("RUN useradd")
+        .and_then(|(_, remainder)| remainder.split_once("COPY --from=tooling-builder"))
+        .map(|(block, _)| block)
+        .expect("final image user setup block");
+    let (before_chown, _) = user_setup
+        .split_once("chown -R dev:dev /workspace /home/dev")
+        .expect("dev home ownership setup");
+
+    assert!(before_chown.contains("/home/dev/.local/share"));
+}
+
+#[test]
 fn image_uses_conservative_system_wide_uv_policy() {
     let containerfile = include_str!("../../../config/Containerfile");
     let policy = include_str!("../../../config/uv.toml");
